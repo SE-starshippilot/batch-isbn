@@ -19,22 +19,6 @@ def accessPage(baseURL:str, id:str, postfix:str='')->json:
     assert page.ok
     return json.loads(page.text)
 
-def getBook(bookTitle):
-    """
-    returns the most similar book found on Open Library as a json object
-    """
-    # url = conf['BASE_URL'] + f_title
-    page = requests.get('https://openlibrary.org/search.json?title=The+Elements+of+Styles&author=William')
-    return json.loads(page.text)['docs'][0]
-
-def getEdition(editionID):
-    """
-    return information about a specific edition
-    """
-    url = conf['EDITION_QUERY_URL'] + editionID + '.json?'
-    page = requests
-    return
-
 def debug():
     global conf
     # docs = getBook("The+Elements+of+Styles")
