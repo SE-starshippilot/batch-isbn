@@ -35,14 +35,28 @@ def debug():
     # docs = getBook("The+Elements+of+Styles")
     with open('config.json', 'r') as jf:
         conf = json.load(jf)
+
+    bookInfo = None
+
+    # Return book info test
     # There could be more than one matches, and we pick the most similar one as the result
-    # bookInfo = accessPage(conf['BOOK_QUERY_URL'], "The+Elements+of+Styles")['docs'][0]
-    # with open('sampleBookInfo.json', 'w') as f:
-    #     json.dump(bookInfo, f, indent=2) if bookInfo else 'Not Found'
-    # firstEdition = bookInfo['edition_key'][1]
-    editionInfo = accessPage(conf['EDITION_QUERY_URL'], 'OL32926552M', postfix='.json?')
-    with open('sampleEditionInfo.json', 'w') as f:
-        json.dump(editionInfo, f, indent=2) if editionInfo else 'Not Found'
+    bookInfo = accessPage(conf['BOOK_QUERY_URL'], "The+Elements+of+Styles")['docs'][0]
+    with open('sampleBookInfo.json', 'w') as f:
+        json.dump(bookInfo, f, indent=2) if bookInfo else 'Not Found'
+
+    # Return an attribute for all the editions of abook
+    # attrName = 'edition_key'
+    # for edition in bookInfo['edition_key']:
+    #     editionPage = accessPage(conf['EDITION_QUERY_URL'], edition, postfix='.json?')
+    #     if attrName in editionPage.keys():
+    #         print(f"{edition}'s {attrName} attribute is {editionPage[attrName]}")
+    #     else:
+    #         print(f'{edition} has no attribute {attrName} specified')
+
+    # Return specific Edition Test
+    # editionPage = accessPage(conf['EDITION_QUERY_URL'], 'OL31992890M', postfix='.json?')
+    # with open('sampleEditionInfo.json', 'w') as wf:
+    #     json.dump(editionPage, wf, indent=2)
 
 
 if __name__ == '__main__':

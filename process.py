@@ -1,93 +1,71 @@
+import re
 import json
 import numpy as np
-from fuzzywuzzy import fuzz, process
-from difflib import SequenceMatcher
-from functools import partial, reduce
+from fuzzywuzzy import fuzz
 
 conf = None
 
-def calcRecordSimilarity(correct:dict, found:list)->int:
+def calcEditionSimilarity(correct:dict, found:dict)->int:
     """
-        Calculate the similarity between a given record and the correct, return the information found and a heuristic similarity
+        Calculate the similarity between a given edition and the correct, return the information found and a heuristic similarity
+        The similarity is based on the publisher, publish date and type of meida
     """
+    truncate = lambda x: 1 if x > conf['HIGHBOUND'] else 0 if x < conf['LOWBOUND'] else x
 
-    def calcAttrSimilarity(attribute_name: str) -> list:
-        """
-            returns the similarity ratio of best match between the correct and found content on a given attribute
-            0 means not found, 1 means found exact, decimal means fuzzy
-        """
-        correctAttr = correct[attribute_name]
-        foundAttr = found[attribute_name]
+    editionInfo = {}
+    attrNum = len(conf['EDITION_ATTRIBUTES'])
+    nullMap = np.geomspace(10 ** (attrNum - 1), 1, num=attrNum)
+    similarityMap = np.zeros_like(nullMap)
+    for idx, attr in enumerate(conf['EDITION_ATTRIBUTES']):
+        if attr in found.keys():
+            if idx == 0: # search for publisher
+                attrInfo = found[attr][0]
+                attrSimilarity = strMatch(correct[attr], attrInfo)
+            elif idx == 1: # search for publish date
+                attrInfo = int(re.findall(conf['YEAR_PATTERN'], found[attr])[0])
+                attrSimilarity = 1/ (1 + abs(attrInfo - correct[attr]))
+            elif idx == 2: # search for physical format
+                attrInfo = found[attr].lower()
+                attrSimilarity = conf['PHYSICAL_FORMAT_MAP'].get(attrInfo, 0)
+            else:
+                attrInfo = found[attr]
+                attrSimilarity = 0 # dummy. No real meaning.
+            editionInfo[attr] = attrInfo
+            similarityMap[idx] = truncate(attrSimilarity)
+        else:
+            nullMap[idx] = 0
 
-        if isinstance(correctAttr, int): # For publish year, there could be only one possible value
-            diff = np.clip(np.array(foundAttr) - correctAttr, -2, 2)
-            similarity = (2 - min(np.absolute(diff)))/2
-            year = -1
-            if similarity == 1:
-                year = correctAttr
-            elif similarity != 0:
-                year = correctAttr + 1 if np.absolute(diff) == np.max(diff) else correctAttr - 1
-            return year, (2 - min(diff))/2 # 0 if no match, 0.5 ± 1, 1 exact match
-        
-        if not(isinstance(correctAttr, list)): # For publisher and author, for code simplicity, transfer single-valued string to list
-            correctAttr = [correctAttr]
-        if not(isinstance(foundAttr, list)):
-            foundAttr = [foundAttr]
+    editionSimilarity = nullMap @ similarityMap
+    if conf['EDITION_ATTRIBUTES'][-1] not in editionInfo:
+        editionInfo[conf['EDITION_ATTRIBUTES'][-1]] = 'ISBN Not Found'
+    return editionInfo, editionSimilarity
 
-        matchRatio = np.zeros(len(correctAttr))
-        matchNames = []
-        for _ in enumerate(correctAttr):
-            name, score = strMatch(_[1], foundAttr)
-            matchRatio[_[0]] = score
-            matchNames.append(name)
-        return matchNames, np.average(matchRatio)
-
-    recordSimilarity = 0
-    recordInfo = {}
-    for _, attribute in enumerate(conf['ATTRIBUTES']):
-        attrInfo, attrSimiarity = calcAttrSimilarity(attribute)
-        recordSimilarity = recordSimilarity * 10 + attrSimiarity
-        recordInfo[attribute] = attrInfo
-    return recordInfo, recordSimilarity
-
-def strMatch(correct: str, found: list) -> list:
+def strMatch(correct: str, found: str) -> list:
     """
-    returns the most similar string in found and the similarity index
+    returns maximum similarity index of a given st
     it is also possible that the substring of the correct string has higher similarity
     e.g: correct is 'WLC Books' and there is 'W L C' in found. They should be the most similar one.
     """
+    found = found.replace(' ', '')
     subCorrect = correct.split(' ')
     subCorrect.append(correct)
-    maxSub = (None, -1)
+    maxScore = -1
     for sub in subCorrect:
-        res = process.extractOne(correct, found , scorer=fuzz.partial_ratio)
-        score = 0 if res[1] < conf['LOWBOUND'] else 1 if res[1] > conf['HIGHBOUND'] else res[1]
-        if score > maxSub[1]: maxSub = (res[0], score)
-    return maxSub
-
-def getMostSimilarRecord(correct:json, records: list) -> json:
-    maxSimilarity = (None, 0)
-    for _ in records:
-        currSimilarity = calcRecordSimilarity(correct, _)
-        if currSimilarity[1] > maxSimilarity[1]:
-            maxSimilarity = currSimilarity
-    return maxSimilarity[0]
+        score = fuzz.partial_ratio(sub, found)/100
+        if score > maxScore: maxScore = score
+    return maxScore
 
 def debug():
     global conf
     with open('config.json') as c:
         conf = json.load(c)
-    with open('sample.json', 'r') as f:
+    with open('sampleEditionInfo.json', 'r') as f:
         docs = json.load(f)            
-        correct = {'title': 'The Elements of Styles',
-                'author_name':['William Jr. Struck', 'James McGill'],
-                'publish_year': 2009,
-                'publisher_facet': 'WLC Books',
+        correct = {
+                'publish_date': 2009,
+                'publishers': 'WLC Books',
                 }
-        for key in docs.keys():
-            if isinstance(docs[key], list):
-                print(f'{key} length is {len(docs[key])}')
-        # getMostSimilarRecord(correct, docs)
+        calcEditionSimilarity(correct, docs)
 
 if __name__ == '__main__':
     debug()
