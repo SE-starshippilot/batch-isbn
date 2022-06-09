@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
+import config as conf
 
 def getFilePath(useGUI = False)->str:
     """
@@ -30,9 +31,20 @@ def getFilePath(useGUI = False)->str:
         else:
             return dir
 
+def importData(inputFileName:str)->pd.DataFrame:
+    df = pd.read_excel(inputFileName, sheet_name=conf.SHEET_INDEX)
+    for attr in conf.EXCEL_ATTRIBUTES:
+        df[attr + conf.FOUND_ATTRIBUTE_POSTFIX] = ''
+    return df
+
+def exportData(inputFileName:str, data:pd.DataFrame)->None:
+    postfixPos = inputFileName.rfind('.')
+    outputFileName = inputFileName[:postfixPos] + '_FOUNDED' + inputFileName[postfixPos:]
+    data.to_excel(outputFileName)
+
 def debug():
-    f = getFilePath(useGUI = True)
-    print(f)
+    f = '/Users/shitianhao/Documents/lib work/LibGuides Spring 2022.xls'
+    df = pd.read_excel(f)
 
 # def getSheetIndex(file:pd.DataFrame)->int:
     # if len(file.sheet_names) != 1:

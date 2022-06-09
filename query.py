@@ -26,8 +26,8 @@ def accessPage(baseURL:str, id:str, postfix:str='')->json:
                 print(f'{trials} trial(s) failed. Retrying...')
             else:
                 print('Maximum trials exceeded. Aborting...')
-                return ''
-        else:    
+                return page.reason, ''
+        else:
             return json.loads(page.text)
 
 def debug():
