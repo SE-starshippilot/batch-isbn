@@ -1,0 +1,10 @@
+requests
+beautifulsoup4
+xlrd
+json
+numpy
+pandas
+fuzzywuzzy
+python-Levenshtein
+urllib3
+xlwt
