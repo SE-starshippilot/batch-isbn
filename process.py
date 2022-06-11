@@ -5,6 +5,9 @@ from fuzzywuzzy import fuzz
 import config as conf
 
 truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
+hasChineseChar = lambda x: len(re.findall(r'[\u4e00-\u9fff]+', x)) != 0
+
+
 
 def calcEditionSimilarity(found:dict, correct:dict)->int:
     """

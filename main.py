@@ -7,18 +7,12 @@ from process import *
 from file_io import *
 import config as conf
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument()
 df = None
-# logging.basicConfig(level=logging.INFO, format=)
-class QueryError(Exception):
-    def __init__(self, message, status) -> None:
-        super().__init__(message, status)
-        
 def getBookInfo(bookName:str)->list:
     """
     returns a dictionary containing the book title, author and a list of all the edition ID
     """
+    bookURL = getURL(conf.BOOK_QUERY_URL, )
     accessBookPage = lambda bookName: accessPage(conf.BOOK_QUERY_URL, bookName)
 
     encodeName = parse.quote_plus(bookName)
@@ -80,13 +74,14 @@ def debug():
             print(f'Handling {df.loc[idx, "Title"]}')
             if isinstance(df.loc[idx, conf.EXCEL_ATTRIBUTES[0]+conf.FOUND_ATTRIBUTE_POSTFIX], str):
                 df.loc[idx, 'Notes'] = 'ISBN already available'
-            elif isinstance(df.loc[idx, 'Notes'], str):
+            elif isinstance(df.loc[idx, 'Notes'], str): # for debgging only
                 pass
             else:
                 bookInfo, editionList = getBookInfo(df.loc[idx, convert(conf.BOOK_ATTRIBUTES[0])]) # BOOK_ATTRIBUTE[0] is title
                 print(f'\t Edition number:{len(editionList)}')
                 if not(bookInfo):
                     df.loc[idx, 'Notes'] = 'No information found'
+                    getManualURL(df.loc[idx, convert(conf.BOOK_ATTRIBUTES[0])])
                     continue
                 correctEditionInfo = getCorrectEditionInfo(df.loc[idx, :]) 
                 bestMatchEdition = getBestMatchEdition(correctEditionInfo, editionList)

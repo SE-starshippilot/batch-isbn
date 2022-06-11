@@ -3,18 +3,22 @@ import config as conf
 import json
 import time
 import logging
+from urllib import parse
 from logging import config
 import requests
 import numpy as np
 
-def accessPage(baseURL:str, id:str, postfix:str='')->json:
+def getURL(baseURL:str, value:dict)->str:
+    return baseURL + parse.unquote(value)
+
+
+def accessPage(pageURL)->json:
     """
     access a page from a root node specified by id and postfix
     returns a json object if found
     """
     trials = 0
     while True:
-        pageURL = baseURL + id + postfix
         logging.info(f'Accessing {pageURL}')
         try:
             page = requests.get(pageURL)
