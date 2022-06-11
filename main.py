@@ -1,5 +1,3 @@
-import json
-import math
 # import logging
 import argparse
 import pandas as pd
@@ -21,29 +19,40 @@ def getBookInfo(bookName:str)->list:
     """
     returns a dictionary containing the book title, author and a list of all the edition ID
     """
-    accessBookPage = lambda bookName: accessPage(conf.BOOK_QUERY_URL, bookName)['docs']
+    accessBookPage = lambda bookName: accessPage(conf.BOOK_QUERY_URL, bookName)
 
-    bookName = parse.quote(bookName)
-    bookPage = accessBookPage(bookName)
-    if not(bookPage):
-        return 0, {}
-    else:
-        bookPage = bookPage[0]
+    encodeName = parse.quote_plus(bookName)
+    bookPage = accessBookPage(encodeName)
     bookInfo = {} # founded book information
+    editionInfo = []
+    if bookPage['numFound']:
+        firstWork = bookPage['docs'][0]
+    else:
+        return bookInfo, editionInfo
     for idx, attr in enumerate(conf.BOOK_ATTRIBUTES):
-        info = bookPage.get(attr, f'{attr} not found')
+        info = firstWork.get(attr, f'{attr} not found')
+        if idx == 0 and strMatch(info, bookName) < conf.HIGHBOUND:
+            return bookInfo, editionInfo #errcode? # If the found book title is too different with correct, terminate search
         if idx == len(conf.BOOK_ATTRIBUTES) - 1:
-            return bookInfo, info # the last attribute acuqires edition information
-        bookInfo[attr] = info
+            editionInfo = info # the last attribute acuqires edition information
+        else:
+            bookInfo[attr] = info
+    return bookInfo, editionInfo
 
 def getBestMatchEdition(correct:dict, editionList:list)->dict:
     accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL, editionID, postfix='.json?')
+    maxSimilarity = calcMaxSimilarity(correct)
     bestMatchEdition = (None, -1)
+    editionNum = 0
     for editionID in editionList:
+        print(f'\t\t Handling edition No.{editionNum}')
+        editionNum += 1
         editionPage = accessEditionPage(editionID)
-        editionInfo, editionSimilarity =  calcEditionSimilarity(correct, editionPage)
+        editionInfo, editionSimilarity =  calcEditionSimilarity(editionPage, correct)
         if editionSimilarity > bestMatchEdition[1]:
             bestMatchEdition = (editionInfo, editionSimilarity)
+        if editionSimilarity == maxSimilarity:
+            break
     return bestMatchEdition[0]
 
 def getCorrectEditionInfo(row:pd.Series)->dict:
@@ -57,30 +66,41 @@ def getCorrectEditionInfo(row:pd.Series)->dict:
 convert = lambda attr: conf.EXCEL_FIELD_MAP[attr]
 
 def debug():
+    import traceback
     def logError(index:int, err:int)->None:
         global df
         df.loc[index, 'Notes'] = conf.ERROR_CODE[err]
     global df
-    fileName = '/Users/shitianhao/Documents/lib work/LibGuides Spring 2022.xls'
+    fileName = '/Users/shitianhao/Documents/lib work/test.xls'
     df = importData(fileName)
 
     # Main Loop
-    for idx in df.index:
-        if isinstance(df.loc[idx,'ISBN'], str):
-            logError(idx, 1)
-            df.loc[idx, 'Notes'] = 'ISBN already available'
-            print(type(df.loc[idx, 'Author']))
-        else:
-            bookInfo, editionList = getBookInfo(df.loc[idx, convert(conf.BOOK_ATTRIBUTES[0])]) # BOOK_ATTRIBUTE[0] is title
-            editionInfo = getCorrectEditionInfo(df.loc[idx, :]) 
-            bestMatchEdition = getBestMatchEdition(editionInfo, editionList)
-            concatInfo = {**bookInfo, **bestMatchEdition}
-            for attr in conf.EXCEL_ATTRIBUTES:
-                attrValue = concatInfo[attr]
-                if isinstance(attrValue, list): attrValue = ''.join(attrValue)
-                df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
-    
-    exportData(fileName, df)
+    try:
+         for idx in df.index:
+            print(f'Handling {df.loc[idx, "Title"]}')
+            if isinstance(df.loc[idx, conf.EXCEL_ATTRIBUTES[0]+conf.FOUND_ATTRIBUTE_POSTFIX], str):
+                df.loc[idx, 'Notes'] = 'ISBN already available'
+            elif isinstance(df.loc[idx, 'Notes'], str):
+                pass
+            else:
+                bookInfo, editionList = getBookInfo(df.loc[idx, convert(conf.BOOK_ATTRIBUTES[0])]) # BOOK_ATTRIBUTE[0] is title
+                print(f'\t Edition number:{len(editionList)}')
+                if not(bookInfo):
+                    df.loc[idx, 'Notes'] = 'No information found'
+                    continue
+                correctEditionInfo = getCorrectEditionInfo(df.loc[idx, :]) 
+                bestMatchEdition = getBestMatchEdition(correctEditionInfo, editionList)
+                concatInfo = {**bookInfo, **bestMatchEdition}
+                for attr in conf.EXCEL_ATTRIBUTES:
+                    attrValue = concatInfo.get(attr, None)
+                    if attrValue is None: continue
+                    if isinstance(attrValue, list): attrValue = ''.join(attrValue)
+                    df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
+    except Exception as e:
+        traceback.print_exc()
+        exportData(fileName, df, overwrite=True)
+    else:
+        exportData(fileName, df)
 
 
     

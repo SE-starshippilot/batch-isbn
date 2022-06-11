@@ -4,42 +4,53 @@ import numpy as np
 from fuzzywuzzy import fuzz
 import config as conf
 
-def calcEditionSimilarity(correct:dict, found:dict)->int:
+truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
+
+def calcEditionSimilarity(found:dict, correct:dict)->int:
     """
         Calculate the similarity between a given edition and the correct, return the information found and a heuristic similarity
         The similarity is based on the publisher, publish date and type of meida
     """
-    truncate = lambda x: 1 if x > conf.HIGHBOUND else 0 if x < conf.LOWBOUND else x
 
-    editionInfo = {'isbn':['ISBN Not Found']}
-    attrNum = len(conf.EDITION_ATTRIBUTES)
-    nullMap = np.geomspace(10 ** (attrNum - 1), 1, num=attrNum)
-    similarityMap = np.zeros_like(nullMap)
-    foundISBN = 0
-    for idx, attr in enumerate(conf.EDITION_ATTRIBUTES):
-        if attr in found.keys():
-            if idx == 0: # search for publisher
-                attrInfo = found[attr][0]
-                attrSimilarity = strMatch(correct[attr], attrInfo)
-            elif idx == 1: # search for publish date
-                attrInfo = int(re.findall(conf.YEAR_PATTERN, found[attr])[0])
-                attrSimilarity = 1/ (1 + abs(attrInfo - correct[attr]))
-            elif idx == 2: # search for physical format
-                attrInfo = found[attr].lower()
-                attrSimilarity = conf.PHYSICAL_FORMAT_MAP.get(attrInfo, 0)
-            else: # try to get ISBN. ISBN-13 is preferred.
-                attrInfo = found[attr]
-                editionInfo['isbn'] = attrInfo
-                continue
-            editionInfo[attr] = attrInfo
-            similarityMap[idx] = truncate(attrSimilarity)
+    def calcAttrSimilarity(idx:str, found: any, correct: any=None)->int:
+        if idx == 0:
+            return truncate(strMatch(found[0], correct))
+        elif idx == 1:
+            try:
+                attrInfo = int(re.findall(conf.YEAR_PATTERN, found)[0])
+            except IndexError:
+                return 0
+            else:
+                return 1/ (1 + abs(attrInfo - correct))
         else:
-            nullMap[idx] = 0
+            return conf.PHYSICAL_FORMAT_MAP.get(found, 0)
+            
+    editionInfo = {'isbn':['ISBN Not Found']}
+    similarityMap = np.zeros_like(conf.HEURISTIC_SCORE_MAP)
+    for idx, attr in enumerate(conf.EDITION_ATTRIBUTES):
+        foundAttr = found.get(attr, None)
+        if foundAttr: # If the record contains attribute
+            if idx < 2:
+                editionInfo[attr] = foundAttr
+                correctAttr = correct.get(attr, None)
+                if correctAttr: 
+                    similarityMap[idx] = calcAttrSimilarity(idx, foundAttr, correctAttr)
+            elif idx == 2:
+                similarityMap[idx] = calcAttrSimilarity(idx, foundAttr)
+                editionInfo[attr] = foundAttr
+            else: # try to get ISBN. ISBN-13 is preferred.
+                editionInfo[conf.EXCEL_ATTRIBUTES[0]] = foundAttr
 
-    editionSimilarity = nullMap @ similarityMap
+    editionSimilarity = np.array(conf.HEURISTIC_SCORE_MAP) @ similarityMap
     return editionInfo, editionSimilarity
 
-def strMatch(correct: str, found: str) -> list:
+def calcMaxSimilarity(correct:dict)->int:
+    nullMap = np.ones_like(conf.HEURISTIC_SCORE_MAP)
+    for idx, attr in enumerate(conf.EDITION_ATTRIBUTES[:2]):
+        nullMap[idx] = attr in correct.keys()
+    return nullMap @ np.array(conf.HEURISTIC_SCORE_MAP)
+
+def strMatch(found: str, correct: str) -> list:
     """
     returns maximum similarity index of a given st
     it is also possible that the substring of the correct string has higher similarity
@@ -62,7 +73,7 @@ def debug():
                 'publish_date': 2009,
                 'publishers': 'WLC Books',
                 }
-        calcEditionSimilarity(correct, docs)
+        calcEditionSimilarity(docs, correct)
 
 if __name__ == '__main__':
     debug()

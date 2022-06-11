@@ -1,5 +1,3 @@
-import xlrd
-import json
 import pandas as pd
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
@@ -34,13 +32,22 @@ def getFilePath(useGUI = False)->str:
 def importData(inputFileName:str)->pd.DataFrame:
     df = pd.read_excel(inputFileName, sheet_name=conf.SHEET_INDEX)
     for attr in conf.EXCEL_ATTRIBUTES:
-        df[attr + conf.FOUND_ATTRIBUTE_POSTFIX] = ''
+        foundAttrName = attr + conf.FOUND_ATTRIBUTE_POSTFIX
+        if not(foundAttrName in df.columns):
+            df[attr + conf.FOUND_ATTRIBUTE_POSTFIX] = ''
     return df
 
-def exportData(inputFileName:str, data:pd.DataFrame)->None:
+def exportData(inputFileName:str, data:pd.DataFrame, overwrite = False, out_format = None)->None:
     postfixPos = inputFileName.rfind('.')
-    outputFileName = inputFileName[:postfixPos] + '_FOUNDED' + inputFileName[postfixPos:]
-    data.to_excel(outputFileName)
+    if postfixPos == -1:
+        raise NameError
+    if overwrite:
+        data.to_excel(inputFileName, index=False)
+    else:
+        fileNameNoPostfix = inputFileName[:postfixPos]
+        filePostfix = out_format if out_format else inputFileName[postfixPos:]
+        outputFileName =  fileNameNoPostfix + '_FOUNDED' + filePostfix
+        data.to_excel(outputFileName, index=False)
 
 def debug():
     f = '/Users/shitianhao/Documents/lib work/LibGuides Spring 2022.xls'
