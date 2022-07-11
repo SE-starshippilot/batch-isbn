@@ -8,30 +8,30 @@ from file_io import *
 import config as conf
 
 df = None
-def getBookInfo(bookName:str)->list:
-    """
-    returns a dictionary containing the book title, author and a list of all the edition ID
-    """
-    bookURL = getURL(conf.BOOK_QUERY_URL, )
-    accessBookPage = lambda bookName: accessPage(conf.BOOK_QUERY_URL, bookName)
+# def getBookInfo(bookName:str)->list:
+#     """
+#     returns a dictionary containing the book title, author and a list of all the edition ID
+#     """
+#     bookURL = getURL(conf.BOOK_QUERY_URL, )
+#     accessBookPage = lambda bookName: accessPage(conf.BOOK_QUERY_URL, bookName)
 
-    encodeName = parse.quote_plus(bookName)
-    bookPage = accessBookPage(encodeName)
-    bookInfo = {} # founded book information
-    editionInfo = []
-    if bookPage['numFound']:
-        firstWork = bookPage['docs'][0]
-    else:
-        return bookInfo, editionInfo
-    for idx, attr in enumerate(conf.BOOK_ATTRIBUTES):
-        info = firstWork.get(attr, f'{attr} not found')
-        if idx == 0 and strMatch(info, bookName) < conf.HIGHBOUND:
-            return bookInfo, editionInfo #errcode? # If the found book title is too different with correct, terminate search
-        if idx == len(conf.BOOK_ATTRIBUTES) - 1:
-            editionInfo = info # the last attribute acuqires edition information
-        else:
-            bookInfo[attr] = info
-    return bookInfo, editionInfo
+#     encodeName = parse.quote_plus(bookName)
+#     bookPage = accessBookPage(encodeName)
+#     bookInfo = {} # founded book information
+#     editionInfo = []
+#     if bookPage['numFound']:
+#         firstWork = bookPage['docs'][0]
+#     else:
+#         return bookInfo, editionInfo
+#     for idx, attr in enumerate(conf.BOOK_ATTRIBUTES):
+#         info = firstWork.get(attr, f'{attr} not found')
+#         if idx == 0 and strMatch(info, bookName) < conf.HIGHBOUND:
+#             return bookInfo, editionInfo #errcode? # If the found book title is too different with correct, terminate search
+#         if idx == len(conf.BOOK_ATTRIBUTES) - 1:
+#             editionInfo = info # the last attribute acuqires edition information
+#         else:
+#             bookInfo[attr] = info
+#     return bookInfo, editionInfo
 
 def getBestMatchEdition(correct:dict, editionList:list)->dict:
     accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL, editionID, postfix='.json?')
@@ -71,14 +71,14 @@ def debug():
     # Main Loop
     try:
          for idx in df.index:
-            print(f'Handling {df.loc[idx, "Title"]}')
-            if isinstance(df.loc[idx, conf.EXCEL_ATTRIBUTES[0]+conf.FOUND_ATTRIBUTE_POSTFIX], str):
+            print(f'Handling {df.loc[idx, "Title"]}') # need to change to logging
+            if isinstance(df.loc[idx, conf.EXCEL_ATTRIBUTES[0]+conf.FOUND_ATTRIBUTE_POSTFIX], str): # the ISBN field is not empty
                 df.loc[idx, 'Notes'] = 'ISBN already available'
-            elif isinstance(df.loc[idx, 'Notes'], str): # for debgging only
+            elif isinstance(df.loc[idx, 'Notes'], str): # I forgot what does this mean
                 pass
             else:
                 bookInfo, editionList = getBookInfo(df.loc[idx, convert(conf.BOOK_ATTRIBUTES[0])]) # BOOK_ATTRIBUTE[0] is title
-                print(f'\t Edition number:{len(editionList)}')
+                print(f'\t Edition number:{len(editionList)}') # need to change to logging
                 if not(bookInfo):
                     df.loc[idx, 'Notes'] = 'No information found'
                     getManualURL(df.loc[idx, convert(conf.BOOK_ATTRIBUTES[0])])
