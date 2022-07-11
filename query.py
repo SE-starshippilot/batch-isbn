@@ -10,9 +10,6 @@ import numpy as np
 
 from utils import strMatch
 
-def getURL(baseURL:str, value:dict)->str:
-    return baseURL + parse.unquote(value)
-
 def accessPage(pageURL)->json:
     """
     access a page from a root node specified by id and postfix
@@ -21,12 +18,13 @@ def accessPage(pageURL)->json:
     trials = 0
     while True:
         logging.info(f'Accessing {pageURL}')
+        reason = ''
         try:
             page = requests.get(pageURL)
             reason = page.reason
             assert page.ok
         except Exception:
-            logging.warning(f'Error when accessing {pageURL}')
+            logging.warning(f'Error when accessing {pageURL}: {reason}')
             if trials < conf.MAXIMUM_TRIALS:
                 trials += 1
                 logging.warning(f'Retrying for {trials} time.')
@@ -41,26 +39,23 @@ def getBookInfo(bookName:str)->list:
     """
     returns a dictionary containing the book title, author and a list of all the edition ID
     """
-    bookURL = getURL(conf.BOOK_QUERY_URL, )
     accessBookPage = lambda bookName: accessPage(conf.BOOK_QUERY_URL, bookName)
 
     encodeName = parse.quote_plus(bookName)
     bookPage = accessBookPage(encodeName)
     bookInfo = {} # founded book information
-    editionInfo = []
+    editionInfo = [] # found edition information
+    useManual = False
     if bookPage['numFound']:
-        firstWork = bookPage['docs'][0]
-    else:
-        return bookInfo, editionInfo
-    for idx, attr in enumerate(conf.BOOK_ATTRIBUTES):
-        info = firstWork.get(attr, f'{attr} not found')
-        if idx == 0 and strMatch(info, bookName) < conf.HIGHBOUND:
-            return bookInfo, editionInfo #errcode? # If the found book title is too different with correct, terminate search
-        if idx == len(conf.BOOK_ATTRIBUTES) - 1:
-            editionInfo = info # the last attribute acuqires edition information
-        else:
+        firstWork = bookPage['docs'][0] # pick the most similar result
+        for idx, attr in enumerate(conf.BOOK_ATTRIBUTES[:-1]):
+            info = firstWork.get(attr, '')
             bookInfo[attr] = info
-    return bookInfo, editionInfo
+            if not(info) or strMatch(info, bookName) < conf.HIGHBOUND: 
+                useManual = True
+                break # If the retrived information is empty or it is too different from the correct one
+        editionInfo = firstWork.get(conf.BOOK_ATTRIBUTES[-1], '') # Assuming for a work, there is at least one edition
+    return bookInfo, editionInfo, useManual # TODO: Why did I separate edition info in the first place?
 
 def getManualURL(bookName:str, carrier:str)->str:
     return carrier + bookName

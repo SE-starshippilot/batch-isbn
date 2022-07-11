@@ -5,33 +5,9 @@ from urllib import parse
 from query import *
 from process import *
 from file_io import *
+from utils import *
 import config as conf
-
 df = None
-# def getBookInfo(bookName:str)->list:
-#     """
-#     returns a dictionary containing the book title, author and a list of all the edition ID
-#     """
-#     bookURL = getURL(conf.BOOK_QUERY_URL, )
-#     accessBookPage = lambda bookName: accessPage(conf.BOOK_QUERY_URL, bookName)
-
-#     encodeName = parse.quote_plus(bookName)
-#     bookPage = accessBookPage(encodeName)
-#     bookInfo = {} # founded book information
-#     editionInfo = []
-#     if bookPage['numFound']:
-#         firstWork = bookPage['docs'][0]
-#     else:
-#         return bookInfo, editionInfo
-#     for idx, attr in enumerate(conf.BOOK_ATTRIBUTES):
-#         info = firstWork.get(attr, f'{attr} not found')
-#         if idx == 0 and strMatch(info, bookName) < conf.HIGHBOUND:
-#             return bookInfo, editionInfo #errcode? # If the found book title is too different with correct, terminate search
-#         if idx == len(conf.BOOK_ATTRIBUTES) - 1:
-#             editionInfo = info # the last attribute acuqires edition information
-#         else:
-#             bookInfo[attr] = info
-#     return bookInfo, editionInfo
 
 def getBestMatchEdition(correct:dict, editionList:list)->dict:
     accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL, editionID, postfix='.json?')
