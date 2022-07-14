@@ -39,7 +39,7 @@ def getBookInfo(titleAndAuthor:list)->list:
     """
     returns a dictionary containing the book title, author and a list of all the edition ID
     """
-    bookURL = conf.BOOK_QUERY_URL + parse.quote_plus(titleAndAuthor[0])
+    bookURL = conf.BOOK_QUERY_URL + parse.quote_plus(''.join(titleAndAuthor))
     bookPage = accessPage(bookURL)
     bookInfo = {} # founded book information
     editionInfo = [] # found edition information
@@ -55,7 +55,7 @@ def getBookInfo(titleAndAuthor:list)->list:
     return bookInfo, editionInfo, useManual # TODO: Why did I separate edition info in the first place?
 
 def getBestMatchEdition(correct:dict, editionList:list)->dict:
-    accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL, editionID, postfix='.json?')
+    accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL + editionID + '.json?')
     maxSimilarity = calcMaxSimilarity(correct)
     bestMatchEdition = (None, -1)
     editionNum = 0

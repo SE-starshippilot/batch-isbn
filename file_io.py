@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
@@ -48,6 +49,22 @@ def exportData(inputFileName:str, data:pd.DataFrame, overwrite = False, out_form
         filePostfix = out_format if out_format else inputFileName[postfixPos:]
         outputFileName =  fileNameNoPostfix + '_FOUNDED' + filePostfix
         data.to_excel(outputFileName, index=False)
+
+def readCheckpoint()->int:
+    """
+    Read the checkpoint file and return the index of the latest modified item.
+    A checkpoint file will be generated if it's absent
+    """
+    if not(os.path.exists('ckpt.txt')):
+        print('No checkpoint file found, generating...')
+        writeCheckpoint(0)
+        return 0
+    with open('ckpt.txt', 'r') as f:
+        return int(f.read())
+
+def writeCheckpoint(index:int)->None:
+    with open('ckpt.txt', 'w') as f:
+        f.write(str(index))
 
 def debug():
     f = '/Users/shitianhao/Documents/lib work/LibGuides Spring 2022.xls'
