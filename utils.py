@@ -1,11 +1,19 @@
 import re
 import json
 import numpy as np
+import pandas as pd
+from functools import partial
 
 import config as conf
 from fuzzywuzzy import fuzz
 
-def strMatch(found: str, correct: str) -> list:
+truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
+
+hasChineseChar = lambda x: len(re.findall(r'[\u4e00-\u9fff]+', x)) != 0
+
+convert = lambda attr: conf.EXCEL_FIELD_MAP[attr]
+
+def strMatch(found: str, correct: str) -> float:
     """
     returns maximum similarity index of a given st
     it is also possible that the substring of the correct string has higher similarity
@@ -13,11 +21,12 @@ def strMatch(found: str, correct: str) -> list:
     """
     found = found.replace(' ', '')
     subCorrect = correct.split(' ')
-    subCorrect.append(correct)
+    if not(correct in subCorrect): subCorrect.append(correct)
     maxScore = -1
     for sub in subCorrect:
         score = fuzz.partial_ratio(sub, found)/100
         if score > maxScore: maxScore = score
+        if maxScore >= conf.MAX_SCORE: break
     return maxScore
 
 def calcEditionSimilarity(found:dict, correct:dict)->int:
@@ -64,19 +73,47 @@ def calcMaxSimilarity(correct:dict)->int:
         nullMap[idx] = attr in correct.keys()
     return nullMap @ np.array(conf.HEURISTIC_SCORE_MAP)
 
-truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
+def generateManualURL(bookName:str, carrier:str)->str:
+    return carrier + bookName
 
-hasChineseChar = lambda x: len(re.findall(r'[\u4e00-\u9fff]+', x)) != 0
+def parseEdition(row:pd.Series)->dict:
+    editionInfo = {}
+    for attr in conf.EDITION_ATTRIBUTES[:2]: # publisher and publish_date
+        attrInfo = row[convert(attr)]
+        if isinstance(attrInfo, str) or not(np.isnan(attrInfo)):
+            editionInfo[attr] = attrInfo
+    return editionInfo
+
+def parseRow(row:pd.Series)-> dict:
+    return row
+
+def initializeMapping(programAttr: list, excelAttr: list)->dict:
+    pass
+
+def isWrongInfo(found:any, correct:any)->bool:
+    if isinstance(found, str):
+        return strMatch(found, correct) > conf.HIGHBOUND
+    elif isinstance(found, list):
+        for foundStr in found:
+            isContained = lambda x: strMatch(foundStr, x)
+            containedList = map(isContained, correct)
+            if any(containedList) > conf.HIGHBOUND:
+                return True
+        return False
+
 
 def debug():
     global conf
-    with open('sampleEditionInfo.json', 'r') as f:
-        docs = json.load(f)            
-        correct = {
-                'publish_date': 2009,
-                'publishers': 'WLC Books',
-                }
-        calcEditionSimilarity(docs, correct)
+    lista = ['abc', 'def', 'ghi']
+    listb = ['zmk', 'zzz', 'kas']
+    print(isWrongInfo(lista, listb))
+    # with open('sampleEditionInfo.json', 'r') as f:
+    #     docs = json.load(f)            
+    #     correct = {
+    #             'publish_date': 2009,
+    #             'publishers': 'WLC Books',
+    #             }
+    #     calcEditionSimilarity(docs, correct)
 
 if __name__ == '__main__':
     debug()

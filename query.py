@@ -8,7 +8,7 @@ from logging import config
 import requests
 import numpy as np
 
-from utils import strMatch
+from utils import *
 
 def accessPage(pageURL)->json:
     """
@@ -35,14 +35,12 @@ def accessPage(pageURL)->json:
         else:
             return json.loads(page.text)
 
-def getBookInfo(bookName:str)->list:
+def getBookInfo(titleAndAuthor:list)->list:
     """
     returns a dictionary containing the book title, author and a list of all the edition ID
     """
-    accessBookPage = lambda bookName: accessPage(conf.BOOK_QUERY_URL, bookName)
-
-    encodeName = parse.quote_plus(bookName)
-    bookPage = accessBookPage(encodeName)
+    bookURL = conf.BOOK_QUERY_URL + parse.quote_plus(titleAndAuthor[0])
+    bookPage = accessPage(bookURL)
     bookInfo = {} # founded book information
     editionInfo = [] # found edition information
     useManual = False
@@ -51,14 +49,26 @@ def getBookInfo(bookName:str)->list:
         for idx, attr in enumerate(conf.BOOK_ATTRIBUTES[:-1]):
             info = firstWork.get(attr, '')
             bookInfo[attr] = info
-            if not(info) or strMatch(info, bookName) < conf.HIGHBOUND: 
-                useManual = True
-                break # If the retrived information is empty or it is too different from the correct one
-        editionInfo = firstWork.get(conf.BOOK_ATTRIBUTES[-1], '') # Assuming for a work, there is at least one edition
+            if not(info) or isWrongInfo(info, titleAndAuthor[idx]) < conf.HIGHBOUND: 
+                useManual = True # If the retrived information is empty or it is too different from the correct one
+        editionInfo = firstWork.get(conf.BOOK_ATTRIBUTES[-1]) # Assuming for a work, there is at least one edition
     return bookInfo, editionInfo, useManual # TODO: Why did I separate edition info in the first place?
 
-def getManualURL(bookName:str, carrier:str)->str:
-    return carrier + bookName
+def getBestMatchEdition(correct:dict, editionList:list)->dict:
+    accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL, editionID, postfix='.json?')
+    maxSimilarity = calcMaxSimilarity(correct)
+    bestMatchEdition = (None, -1)
+    editionNum = 0
+    for editionID in editionList:
+        print(f'\t\t Handling edition No.{editionNum}') # Need to change for logging
+        editionNum += 1
+        editionPage = accessEditionPage(editionID)
+        editionInfo, editionSimilarity =  calcEditionSimilarity(editionPage, correct)
+        if editionSimilarity > bestMatchEdition[1]:
+            bestMatchEdition = (editionInfo, editionSimilarity)
+        if editionSimilarity == maxSimilarity:
+            break
+    return bestMatchEdition[0]
 
 def debug():
     # docs = getBook("The+Elements+of+Styles")
@@ -67,23 +77,9 @@ def debug():
 
     # Return book info test
     # There could be more than one matches, and we pick the most similar one as the result
-    bookInfo = accessPage(conf.BOOK_QUERY_URL, "Hamlet")['docs'][0]
+    bookInfo = getBookInfo("Hamlet")['docs'][0]
     with open('sampleBookInfo.json', 'w') as f:
         json.dump(bookInfo, f, indent=2) if bookInfo else 'Not Found'
-
-    # Return an attribute for all the editions of abook
-    # attrName = 'edition_key'
-    # for edition in bookInfo['edition_key']:
-    #     editionPage = accessPage(conf['EDITION_QUERY_URL'], edition, postfix='.json?')
-    #     if attrName in editionPage.keys():
-    #         print(f"{edition}'s {attrName} attribute is {editionPage[attrName]}")
-    #     else:
-    #         print(f'{edition} has no attribute {attrName} specified')
-
-    # Return specific Edition Test
-    # editionPage = accessPage(conf['EDITION_QUERY_URL'], 'OL31992890M', postfix='.json?')
-    # with open('sampleEditionInfo.json', 'w') as wf:
-    #     json.dump(editionPage, wf, indent=2)
 
 
 if __name__ == '__main__':

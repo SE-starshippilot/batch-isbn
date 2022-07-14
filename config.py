@@ -5,6 +5,8 @@ EXCEL_ATTRIBUTES = ["isbn", "title", "author_name", "publish_date", "publishers"
 SHEET_INDEX = 0
 LOWBOUND = 0.4
 HIGHBOUND = 0.8
+MAX_SCORE = 1.0
+CACHE_SIZE = 50
 BOOK_QUERY_URL = "https://openlibrary.org/search.json?q="
 EDITION_QUERY_URL = "https://openlibrary.org/books/"
 MAXIMUM_TRIALS = 3
