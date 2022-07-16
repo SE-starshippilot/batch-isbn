@@ -37,6 +37,7 @@ def debug():
                     df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
                 _tmpindex = idx
     except Exception:
+        print(idx)
         traceback.print_exc()
         writeCheckpoint(_tmpindex)
         exportData(fileName, df, overwrite=True)

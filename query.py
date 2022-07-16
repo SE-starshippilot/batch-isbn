@@ -39,7 +39,7 @@ def getBookInfo(titleAndAuthor:list)->list:
     """
     returns a dictionary containing the book title, author and a list of all the edition ID
     """
-    bookURL = conf.BOOK_QUERY_URL + parse.quote_plus(''.join(titleAndAuthor))
+    bookURL = conf.BOOK_QUERY_URL + parse.quote_plus(titleAndAuthor[0])
     bookPage = accessPage(bookURL)
     bookInfo = {} # founded book information
     editionInfo = [] # found edition information
