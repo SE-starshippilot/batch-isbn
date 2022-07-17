@@ -1,5 +1,6 @@
 import config as conf
 
+import pandas as pd
 import json
 import time
 import logging
@@ -9,6 +10,7 @@ import requests
 import numpy as np
 
 from utils import *
+
 
 def accessPage(pageURL)->json:
     """
@@ -35,40 +37,36 @@ def accessPage(pageURL)->json:
         else:
             return json.loads(page.text)
 
-def getBookInfo(titleAndAuthor:list)->list:
+def getBookInfo(currentRow:pd.Series)->list:
     """
     returns a dictionary containing the book title, author and a list of all the edition ID
     """
-    bookURL = conf.BOOK_QUERY_URL + parse.quote_plus(titleAndAuthor[0])
+    def getBestMatchEdition(editionList:list)->dict:
+        nonlocal currentRow
+        accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL + editionID + '.json?')
+        bestMatchEdition = (None, -1)
+        for editionID in editionList:
+            print(f'\t\t Handling {editionID}') # Need to change for logging
+            editionPage = accessEditionPage(editionID)
+            editionInfo, editionSimilarity =  calcEditionSimilarity(editionPage, currentRow)
+            if editionSimilarity > bestMatchEdition[1]:
+                bestMatchEdition = (editionInfo, editionSimilarity)
+        return bestMatchEdition[0]
+    bookURL = conf.BOOK_QUERY_URL + parse.quote_plus(currentRow['Title'])
     bookPage = accessPage(bookURL)
     bookInfo = {} # founded book information
-    editionInfo = [] # found edition information
-    useManual = False
     if bookPage['numFound']:
         firstWork = bookPage['docs'][0] # pick the most similar result
-        for idx, attr in enumerate(conf.BOOK_ATTRIBUTES[:-1]):
-            info = firstWork.get(attr, '')
-            bookInfo[attr] = info
-            if not(info) or isWrongInfo(info, titleAndAuthor[idx]) < conf.HIGHBOUND: 
-                useManual = True # If the retrived information is empty or it is too different from the correct one
-        editionInfo = firstWork.get(conf.BOOK_ATTRIBUTES[-1]) # Assuming for a work, there is at least one edition
-    return bookInfo, editionInfo, useManual # TODO: Why did I separate edition info in the first place?
+        for attr in conf.EXCEL_FIELDS[1:3]: # check if title and author matches
+            retAttr = firstWork.get(attr)
+            if retAttr is None or isWrongInfo(retAttr, currentRow[attr]) < conf.HIGHBOUND: 
+                raise AutomateError
+            bookInfo[attr] = retAttr
+        editionInfo = getBestMatchEdition(firstWork.get('edition_key'))
+        return {**bookInfo, **editionInfo}
+    raise AutomateError
 
-def getBestMatchEdition(correct:dict, editionList:list)->dict:
-    accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL + editionID + '.json?')
-    maxSimilarity = calcMaxSimilarity(correct)
-    bestMatchEdition = (None, -1)
-    editionNum = 0
-    for editionID in editionList:
-        print(f'\t\t Handling edition No.{editionNum}') # Need to change for logging
-        editionNum += 1
-        editionPage = accessEditionPage(editionID)
-        editionInfo, editionSimilarity =  calcEditionSimilarity(editionPage, correct)
-        if editionSimilarity > bestMatchEdition[1]:
-            bestMatchEdition = (editionInfo, editionSimilarity)
-        if editionSimilarity == maxSimilarity:
-            break
-    return bestMatchEdition[0]
+
 
 def debug():
     # docs = getBook("The+Elements+of+Styles")

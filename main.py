@@ -1,4 +1,4 @@
-# import logging
+import logging.config
 from query import *
 from file_io import *
 from utils import *
@@ -9,46 +9,52 @@ df = None
 def debug():
     import traceback
     global df
-    fileName = '/Users/shitianhao/Documents/lib work/test.xls'
-    df = importData(fileName)
+
+    args = configparser()
+
+    logging.config.dictConfig(conf.LOGGING_CONFIGURE)
+    logger = logging.getLogger(__name__)
+
+    fileName = getInputDir(args.file)
+    df = importData(fileName, args.addColumns)
+
     startIndex = readCheckpoint()
     endIndex = len(df.index)
-    _tmpindex = startIndex
 
     # Main Loop
     try:
         for idx in range(startIndex, endIndex):
             currentRow = df.loc[idx, :]
-            print(f'Handling {df.loc[idx, "Title"]}') # need to change to logging
+            logger.info(f'Handling {df.loc[idx, "Title"]}')
             if isinstance(currentRow['ISBN'], str): # the ISBN field is not empty
                 df.loc[idx, 'Notes'] = 'ISBN already available'
-            else: # Retrive ISBN
-                titleAndAuthor = [currentRow['Title'], currentRow['Author']]
-                bookInfo, editionList, useManual = getBookInfo(titleAndAuthor)
-                print(f'\t Edition number:{len(editionList)}') # need to change to logging
-                if useManual:
-                    df.loc[idx, 'Notes'] = generateManualURL(df.loc[idx, convert(conf.BOOK_ATTRIBUTES[0])])
-                    continue
-                bestMatchEdition = getBestMatchEdition(currentRow, editionList)
-                concatInfo = {**bookInfo, **bestMatchEdition}
-                for attr in conf.EXCEL_ATTRIBUTES:
-                    attrValue = concatInfo.get(attr, '')
-                    if isinstance(attrValue, list): attrValue = ''.join(attrValue)
+                continue
+            else:
+                if currentRow.isna().sum() > 1:
+                    df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
+                else:
+                    try:
+                        bookInfo = getBookInfo(currentRow)
+                    except AutomateError:
+                        df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
+                    else:
+                        df.loc[idx, 'ISBN'] = bookInfo['ISBN']
+            if args.verbose:
+                for attr in conf.EXCEL_FIELDS:
+                    attrValue = bookInfo.get(attr, '')
+                    if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
                     df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
-                _tmpindex = idx
     except Exception:
-        print(idx)
         traceback.print_exc()
-        writeCheckpoint(_tmpindex)
-        exportData(fileName, df, overwrite=True)
-    else:
-        exportData(fileName, df)
-
-
+        writeCheckpoint(idx)
     
+    outName = args.out if args.out else args.file
+    df.to_excel(outName, index=False)
+
+
 def main():
     global df
-    inFileName = getFilePath(useGUI=True)
+    inFileName = getInputDir(useGUI=True)
     df = importData(inFileName)
     pass
 
