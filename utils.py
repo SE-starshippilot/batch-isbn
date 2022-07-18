@@ -1,5 +1,6 @@
 import re
 import json
+import logging
 import argparse
 import numpy as np
 import pandas as pd
@@ -9,7 +10,7 @@ from fuzzywuzzy import fuzz
 
 class AutomateError(Exception):
     def __init__(self, message: str, *args: object) -> None:
-        self.mesage = message
+        logging.error(message)
 
 truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
 
@@ -31,6 +32,8 @@ def strMatch(found: str, correct: str) -> float:
         if maxScore >= conf.MAX_SCORE: break
     return maxScore
 
+strMatchv0 = lambda found, correct: fuzz.partial_ratio(found, correct)/100
+
 def calcEditionSimilarity(found:dict, correct:dict)->int:
     """
         Calculate the similarity between a given edition and the correct, return the information found and a heuristic similarity
@@ -44,10 +47,11 @@ def calcEditionSimilarity(found:dict, correct:dict)->int:
         if foundAttr: # If the record contains attribute
             if idx < 2: # publisher, publish date
                 editionInfo[attr] = foundAttr
-                correctAttr = correct.get(attr)
+                correctAttr = correct[conf.QUERY_2_EXCEL[attr]]
                 if idx == 0: # publisher
-                    similarityMap[idx] = strMatch(foundAttr, correctAttr)
+                    similarityMap[idx] = fuzz.partial_ratio(foundAttr, correctAttr)/100
                 else: # publish date
+                    foundAttr = int(re.findall(conf.YEAR_PATTERN, foundAttr)[0]) # excel reads year as string
                     if correctAttr == foundAttr:
                         similarityMap[idx] = 1
                     elif abs(correctAttr - foundAttr) <= 1:
@@ -58,9 +62,9 @@ def calcEditionSimilarity(found:dict, correct:dict)->int:
                 similarityMap[idx] = conf.PHYSICAL_FORMAT_MAP.get(foundAttr, 0)
                 editionInfo[attr] = foundAttr
             else: # try to get ISBN. ISBN-13 is preferred.
-                editionInfo['ISBN'] = foundAttr
+                editionInfo['ISBN'] = foundAttr[0]
                 break
-        else:
+        elif idx < 3:
             similarityMap[idx] = 0
 
     editionSimilarity = np.array(conf.HEURISTIC_SCORE_MAP) @ similarityMap
@@ -73,22 +77,48 @@ def generateManualURL(bookName:str)->str:
 
 def isWrongInfo(found:any, correct:any)->bool:
     if isinstance(found, str):
-        return strMatch(found, correct) > conf.HIGHBOUND
+        return fuzz.partial_ratio(found, correct)/100 < conf.HIGHBOUND
     elif isinstance(found, list):
+        if isinstance(correct, str):
+            correct = correct.split(',')
+            correct = [x.strip() for x in correct]
         for foundStr in found:
-            isContained = lambda x: strMatch(foundStr, x)
-            containedList = map(isContained, correct)
-            if any(containedList) > conf.HIGHBOUND:
-                return True
-        return False
+            isContained = lambda x: fuzz.partial_ratio(foundStr, x)/100
+            containedList = np.array(list(map(isContained, correct)))
+            if any(containedList>conf.HIGHBOUND):
+                return False
+        return True
 
 def configparser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file', type = str, help='Specify the input file. Specifying this argument will disable GUI.')
-    parser.add_argument('-o', '--out', type = str, help='Specify the output file. Not specifying this argument will overwrite existing file')
-    parser.add_argument('-v', '--verbose', action = 'store_true', help = 'Show details when running. Default true.')
-    parser.add_argument('-a', '--addColumns', action='store_true', help='Append the found attributes to the file. Default true.')
+    parser.add_argument('-o', '--out', type = str, help='Specify the output file. Not specifying this argument will overwrite existing file.')
+    parser.add_argument('-v', '--verbose', action = 'store_true', help = 'Show details when running. Default not shown.')
+    parser.add_argument('-a', '--addColumns', action='store_true', help='Append the found attributes to the file. Default not added.')
     return parser.parse_args()
+
+def configlogger(verbose:bool):
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    fh = logging.FileHandler('experiment.log')
+    fh.setLevel(logging.INFO)
+
+    ch = logging.StreamHandler()
+    if verbose:
+        ch.setLevel(logging.INFO) 
+    else:
+        ch.setLevel(logging.WARNING)
+
+    fmt = logging.Formatter('%(asctime)s [%(levelname)s]:%(message)s')
+
+    fh.setFormatter(fmt)
+    ch.setFormatter(fmt)
+
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+    return logger
 
 def debug():
     global conf

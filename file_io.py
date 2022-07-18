@@ -1,4 +1,5 @@
 import os
+import logging
 import pandas as pd
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
@@ -32,7 +33,7 @@ def getInputDir(fileName: str)->str:
             return fileDir
 
 def importData(inputFileName:str, addColumn:bool)->pd.DataFrame:
-    df = pd.read_excel(inputFileName, sheet_name=conf.SHEET_INDEX, usecols=conf.EXCEL_FIELDS)
+    df = pd.read_excel(inputFileName, sheet_name=conf.SHEET_INDEX)
     if 'Notes' not in df:
         df['Notes'] = ''
     if addColumn:
@@ -49,30 +50,27 @@ def readCheckpoint()->int:
     A checkpoint file will be generated if it's absent
     """
     if not(os.path.exists('ckpt.txt')):
-        print('No checkpoint file found, generating...')
+        logging.warning('No checkpoint file found, generating...')
         writeCheckpoint(0)
         return 0
     with open('ckpt.txt', 'r') as f:
-        return int(f.read())
+        try:
+            index = int(f.read())
+            logging.info(f'Restored checkpoint at {index}')
+            return index
+        except Exception:
+            logging.warning('Corrupted checkpoint file. Resetting to 0.')
+            writeCheckpoint(0)
+            return 0
 
 def writeCheckpoint(index:int)->None:
+    logging.info(f'Saving checkpoint at {index}')
     with open('ckpt.txt', 'w') as f:
         f.write(str(index))
 
 def debug():
     f = '/Users/shitianhao/Documents/lib work/LibGuides Spring 2022.xls'
     df = pd.read_excel(f)
-
-# def getSheetIndex(file:pd.DataFrame)->int:
-    # if len(file.sheet_names) != 1:
-    #     try:
-    #         idx = input('Please input the index of sheet containing information(default=1)')
-    #         if idx:
-    #             return int(idx)
-    #         else:
-    #             return 1
-    #     except ValueError
-    # return 1
 
 if __name__ == '__main__':
     debug()

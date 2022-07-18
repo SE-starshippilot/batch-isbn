@@ -1,6 +1,13 @@
 FOUND_ATTRIBUTE_POSTFIX = "_found"
-EDITION_ATTRIBUTES = ["publishers", "publish_date", "physical_format", "isbn_10", "isbn_13"]
+EDITION_ATTRIBUTES = ["publishers", "publish_date", "physical_format", "isbn_13", "isbn_10"]
 EXCEL_FIELDS = ["ISBN", "Title", "Author", "Publisher", "Edition Date"]
+QUERY_FIELDS = ["title", "author_name"]
+QUERY_2_EXCEL = {
+    "title": "Title",
+    "author_name": "Author",
+    "publishers": "Publisher",
+    "publish_date": "Edition Date"
+}
 SHEET_INDEX = 0
 LOWBOUND = 0.4
 HIGHBOUND = 0.8
