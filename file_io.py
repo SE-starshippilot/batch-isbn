@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter.filedialog import askopenfilename
 import config as conf
 
+
 def getInputDir(fileName: str)->str:
     """
     Ask user for the excel file for processing. Returns absolute path to the file.
