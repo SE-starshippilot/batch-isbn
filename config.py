@@ -51,3 +51,6 @@ LOGGING_CONFIGURE = {
 }
 CHINESE_BOOK_SEARCH_URL = "https://search.douban.com/book/subject_search?search_text="
 ENGLISH_BOOK_SEARCH_URL = "https://www.amazon.com/s?k="
+class GUILogger():
+    buffer = ''
+
