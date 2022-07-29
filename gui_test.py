@@ -8,30 +8,7 @@ from query import *
 from file_io import *
 from utils import *
 import config as conf
-
-# class GUILogger(logging.StreamHandler):
-#     buffer = ''
-#     def __init__(self, level=logging.WARNING):
-#         logging.StreamHandler.__init__(self)
-#         self.setLevel(level)
-
-#     def __log(self, level,message):
-#         if level >= self.level:
-#             buffer += f'{message}\n'
-    
-#     def debug(self, message):
-#         self.__log(logging.DEBUG, message)
         
-#     def info(self, message):
-#         self.__log(logging.INFO, message)
-        
-#     def warning(self, message):
-#         self.__log(logging.WARNING, message)
-        
-#     def error(self, message):
-#         self.__log(logging.ERROR, message)
-        
-
 
 def createMainWindow():
     checkbox_list = [
@@ -50,7 +27,7 @@ def createMainWindow():
         ],
         [
             sg.ProgressBar(
-                size=(20, 10), max_value=100, orientation='h', bar_color=('green', 'white')
+                size=(20, 10), max_value=100, orientation='h', bar_color=('green', 'white'), key='-prog-'
             )
         ]
     ]
@@ -154,14 +131,50 @@ def main():
         if event == '-File-':
             df = importData(value['Browse'], True)
             # print(value)
-            actionDict = readCheckpoint(value)
+            meta_dict = readCheckpoint(value)
+            meta_dict['end'] = len(df.index)
+            window['-prog-'].update(current_count=meta_dict['start'], max=meta_dict['end'])
         if event == '-Toggle-':
-            for k, v in value:
-                if k != '-log-' or 'Browse':
-                    pass
-            # start=not(start)
-            # if start:
-            #     process()
+            if start:
+                # Main Loop
+                try:
+                    for idx in range(meta_dict['start'], meta_dict['end']):
+                        currentRow = df.loc[idx, :]
+                        updateBuffer(f'Handling Book: {df.loc[idx, "Title"]}')
+                        if isinstance(currentRow['ISBN'], str): # the ISBN field is not empty
+                            df.loc[idx, 'Notes'] = 'ISBN already available'
+                            updateBuffer('ISBN already written. Skipping.')
+                            continue
+                        else:
+                            if currentRow.isna().sum() > 2: # If fields other than ISBN and Notes are empty
+                                df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
+                                updateBuffer('\tDetected Missing Fields. Generating URL for manual retrival.')
+                                continue
+                            else:
+                                try:
+                                    bookInfo = getBookInfo(currentRow)
+                                except AutomateError:
+                                    df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
+                                    updateBuffer('No matching information found. Generating URL for manual retrival.')
+                                    continue
+                                else:
+                                    updateBuffer(f"Found ISBN: {bookInfo['ISBN']}")
+                                    df.loc[idx, 'ISBN'] = bookInfo['ISBN']
+
+                        if meta_dict['-Add-']:
+                            updateBuffer(f"Writing found information into file...")
+                            for attr in conf.EXCEL_FIELDS:
+                                attrValue = bookInfo.get(attr, '')
+                                if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
+                                df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
+                            updateBuffer(f"Done.")
+                except Exception:
+                    updateBuffer("Some error occured, saving checkpoint and quitting")
+                    traceback.print_exc()
+                    writeCheckpoint(idx)
+                
+                outName = args.out if args.out else args.file
+                df.to_excel(outName, index=False)
         window['-log-'].update(value=conf.GUILogger.buffer)
     window.close()
 

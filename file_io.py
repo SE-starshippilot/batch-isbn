@@ -52,7 +52,7 @@ def readCheckpoint(attr_dict:dict)->dict:
     Read the checkpoint file and return the index of the latest modified item.
     A checkpoint file will be generated if it's absent
     """
-    attr_dict['index'] = 0
+    attr_dict['start'] = 0
     ckpt_file_name = f"{attr_dict['-File-'][:attr_dict['-File-'].rfind('.')]}_ckpt.json"
     if not(os.path.exists(ckpt_file_name)):
         updateBuffer(f'Generating checkpoint for file{attr_dict["-File-"]}')
@@ -61,12 +61,14 @@ def readCheckpoint(attr_dict:dict)->dict:
         with open(ckpt_file_name, 'r') as f:
             read_dict = json.load(f)
             try:
-                attr_dict['index'] = read_dict['index']
-                updateBuffer(f"Restored checkpoint at {attr_dict['index']}")
+                start_index = read_dict['start']
             except Exception:
+                updateBuffer(f"Restored checkpoint at {start_index}")
                 traceback.print_exc()
                 updateBuffer('Corrupted checkpoint file. Resetting to 0.')
                 writeCheckpoint(attr_dict)
+            else:
+                attr_dict = read_dict
     return attr_dict        
 
 def writeCheckpoint(attr_dict:dict)->None:
@@ -75,7 +77,7 @@ def writeCheckpoint(attr_dict:dict)->None:
     """
     ckpt_file_name = f"{attr_dict['-File-'][:attr_dict['-File-'].rfind('.')]}_ckpt.json"
     with open(ckpt_file_name, 'w') as f:
-        json.dump(attr_dict, f)
+        json.dump(attr_dict, f, indent=2)
 
 def updateBuffer(message):
     GUILogger.buffer += f'{message}\n'
