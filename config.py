@@ -51,6 +51,7 @@ LOGGING_CONFIGURE = {
 }
 CHINESE_BOOK_SEARCH_URL = "https://search.douban.com/book/subject_search?search_text="
 ENGLISH_BOOK_SEARCH_URL = "https://www.amazon.com/s?k="
+BUTTON_APPEARANCE = {True:{"button_color": "black on grey"}, False:{"button_color": "black on blue"}}
 class GUILogger():
     buffer = ''
 

@@ -6,10 +6,10 @@ import requests
 import logging
 import pandas as pd
 from urllib import parse
-from logging import config
 
 from utils import *
-
+import config
+from file_io import updateBuffer
 
 def accessPage(pageURL)->json:
     """
@@ -18,20 +18,20 @@ def accessPage(pageURL)->json:
     """
     trials = 0
     while True:
-        logging.debug(f'Accessing {pageURL}')
+        updateBuffer(f'Accessing {pageURL}')
         reason = ''
         try:
             page = requests.get(pageURL)
             reason = page.reason
             assert page.ok
         except Exception:
-            logging.warning(f'Error when accessing {pageURL}: {reason}')
+            updateBuffer(f'Error when accessing {pageURL}: {reason}')
             if trials < conf.MAXIMUM_TRIALS:
                 trials += 1
-                logging.warning(f'Retrying for {trials} time.')
+                updateBuffer(f'Retrying for {trials} time.')
                 time.sleep(1)
             else:
-                logging.error(f'Maximum trials exceeded. Aborting...')
+                updateBuffer(f'Maximum trials exceeded. Aborting...')
                 return ''
         else:
             return json.loads(page.text)

@@ -63,11 +63,11 @@ def readCheckpoint(attr_dict:dict)->dict:
             try:
                 start_index = read_dict['start']
             except Exception:
-                updateBuffer(f"Restored checkpoint at {start_index}")
                 traceback.print_exc()
                 updateBuffer('Corrupted checkpoint file. Resetting to 0.')
                 writeCheckpoint(attr_dict)
             else:
+                updateBuffer(f"Restored checkpoint at {start_index}")
                 attr_dict = read_dict
     return attr_dict        
 
@@ -81,6 +81,7 @@ def writeCheckpoint(attr_dict:dict)->None:
 
 def updateBuffer(message):
     GUILogger.buffer += f'{message}\n'
+    
 
 def debug():
     f = '/Users/shitianhao/Documents/lib work/LibGuides Spring 2022.xls'

@@ -1,5 +1,6 @@
 import logging
 import json
+import time
 import pandas as pd
 import PySimpleGUI as sg
 
@@ -14,20 +15,17 @@ def createMainWindow():
     checkbox_list = [
             sg.Checkbox(
                 text='add retrived info', key='-Add-'
-            ),
-            sg.Checkbox(
-                text='restore checkpoint', key='-Restore-'
             )
         ]
     progress_list = [
         [
             sg.Multiline(
-                size=(40, 50), enter_submits=False, autoscroll=True, key='-log-'
+                size=(40, 50), enter_submits=False, autoscroll=True, key='-Log-'
             )
         ],
         [
             sg.ProgressBar(
-                size=(20, 10), max_value=100, orientation='h', bar_color=('green', 'white'), key='-prog-'
+                size=(20, 10), max_value=100, orientation='h', bar_color=('green', 'white'), key='-Prog-'
             )
         ]
     ]
@@ -42,12 +40,15 @@ def createMainWindow():
         [
             sg.Button(
                 button_text='preview', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Preview-'
+            ),
+            sg.Button(
+                button_text='save as...', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Save-', button_color='black on grey'
             )
         ],
         checkbox_list,
         [
             sg.Button(
-                button_text='start/start', tooltip='begin/start the process', disabled=True, enable_events=True, key='-Toggle-'
+                button_text='Start', tooltip='begin/start the process', disabled=True, enable_events=True, key='-Toggle-'
             )
         ]
     ]
@@ -67,65 +68,61 @@ def createPreviewWindow(headings, contents):
 
 def process():
     import traceback
-    global df, logger
+    global df, logger, meta_dict, window
 
-    args = configparser()
-
-    logger = GUILogger()
-
-    fileName = getInputDir(args.file)
-    df = importData(fileName, args.addColumns)
-
-    startIndex = readCheckpoint()
-    endIndex = len(df.index)
-
-    # Main Loop
-    try:
-        for idx in range(startIndex, endIndex):
-            currentRow = df.loc[idx, :]
-            logger.info(f'Handling Book: {df.loc[idx, "Title"]}')
-            if isinstance(currentRow['ISBN'], str): # the ISBN field is not empty
-                df.loc[idx, 'Notes'] = 'ISBN already available'
-                logging.info('ISBN already written. Skipping.')
-                continue
-            else:
-                if currentRow.isna().sum() > 2: # If fields other than ISBN and Notes are empty
-                    df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
-                    logging.warning('\tDetected Missing Fields. Generating URL for manual retrival.')
-                    continue
-                else:
-                    try:
-                        bookInfo = getBookInfo(currentRow)
-                    except AutomateError:
-                        df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
-                        logging.warning('No matching information found. Generating URL for manual retrival.')
-                        continue
-                    else:
-                        logging.info(f"Found ISBN: {bookInfo['ISBN']}")
-                        df.loc[idx, 'ISBN'] = bookInfo['ISBN']
-
-            if args.verbose:
-                logging.info(f"Writing found information into file...")
-                for attr in conf.EXCEL_FIELDS:
-                    attrValue = bookInfo.get(attr, '')
-                    if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
-                    df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
-                logging.info(f"Done.")
-    except Exception:
-        logging.error("Some error occured, saving checkpoint and quitting")
-        traceback.print_exc()
-        writeCheckpoint(idx)
+    if meta_dict['process'] and meta_dict['start'] < meta_dict['end']:
+        curr_index = meta_dict['start'] + 1
+        window['-Prog-'].update(current_count=curr_index)
+        try:
+            # for idx in range(meta_dict['start'], meta_dict['end']):
+            #     currentRow = df.loc[idx, :]
+            updateBuffer(curr_index)
+            time.sleep(0.01)
+        except Exception:
+            updateBuffer("Some error occured, saving checkpoint and quitting")
+            traceback.print_exc()
+        else:
+            meta_dict['start'] = curr_index
+        window['-Log-'].update(value=conf.GUILogger.buffer)
+    if meta_dict['start'] == meta_dict['end']:
+        window['-Toggle-'].update(disabled=True)
+        #         updateBuffer(f'Handling Book: {df.loc[idx, "Title"]}')
+        #         if isinstance(currentRow['ISBN'], str): # the ISBN field is not empty
+        #             df.loc[idx, 'Notes'] = 'ISBN already available'
+        #             updateBuffer('ISBN already written. Skipping.')
+        #         else:
+        #             if currentRow.isna().sum() > 2: # If fields other than ISBN and Notes are empty
+        #                 df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
+        #                 updateBuffer('\tDetected Missing Fields. Generating URL for manual retrival.')
+        #                 continue
+        #             else:
+        #                 try:
+        #                     bookInfo = getBookInfo(currentRow)
+        #                 except AutomateError:
+        #                     df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
+        #                     updateBuffer('No matching information found. Generating URL for manual retrival.')
+        #                     continue
+        #                 else:
+        #                     updateBuffer(f"Found ISBN: {bookInfo['ISBN']}")
+        #                     df.loc[idx, 'ISBN'] = bookInfo['ISBN']
+        #         if meta_dict['-Add-']:
+        #             updateBuffer(f"Writing found information into file...")
+        #             for attr in conf.EXCEL_FIELDS:
+        #                 attrValue = bookInfo.get(attr, '')
+        #                 if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
+        #                 df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
+        #             updateBuffer(f"Done.")
+        
     
-    outName = args.out if args.out else args.file
-    df.to_excel(outName, index=False)
+    # df.to_excel(meta_dict['-File-'], index=False)
 
 
 def main():
-    global lh, window
+    global lh, window, meta_dict, df
     preview = None
     start=False
     while True:
-        event, value = window.read()
+        event, value = window.read(timeout=10)
         if event == 'Goodbye' or event == sg.WINDOW_CLOSED:
             break
         if event == '-File-':
@@ -133,53 +130,19 @@ def main():
             # print(value)
             meta_dict = readCheckpoint(value)
             meta_dict['end'] = len(df.index)
-            window['-prog-'].update(current_count=meta_dict['start'], max=meta_dict['end'])
+            window['-Prog-'].update(current_count=meta_dict['start'], max=meta_dict['end'])
+            window['-Add-'].update(value=meta_dict['-Add-'], disabled=True)
+            window['-Toggle-'].update(disabled=False)
+            print(meta_dict)
         if event == '-Toggle-':
-            if start:
-                # Main Loop
-                try:
-                    for idx in range(meta_dict['start'], meta_dict['end']):
-                        currentRow = df.loc[idx, :]
-                        updateBuffer(f'Handling Book: {df.loc[idx, "Title"]}')
-                        if isinstance(currentRow['ISBN'], str): # the ISBN field is not empty
-                            df.loc[idx, 'Notes'] = 'ISBN already available'
-                            updateBuffer('ISBN already written. Skipping.')
-                            continue
-                        else:
-                            if currentRow.isna().sum() > 2: # If fields other than ISBN and Notes are empty
-                                df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
-                                updateBuffer('\tDetected Missing Fields. Generating URL for manual retrival.')
-                                continue
-                            else:
-                                try:
-                                    bookInfo = getBookInfo(currentRow)
-                                except AutomateError:
-                                    df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
-                                    updateBuffer('No matching information found. Generating URL for manual retrival.')
-                                    continue
-                                else:
-                                    updateBuffer(f"Found ISBN: {bookInfo['ISBN']}")
-                                    df.loc[idx, 'ISBN'] = bookInfo['ISBN']
-
-                        if meta_dict['-Add-']:
-                            updateBuffer(f"Writing found information into file...")
-                            for attr in conf.EXCEL_FIELDS:
-                                attrValue = bookInfo.get(attr, '')
-                                if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
-                                df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
-                            updateBuffer(f"Done.")
-                except Exception:
-                    updateBuffer("Some error occured, saving checkpoint and quitting")
-                    traceback.print_exc()
-                    writeCheckpoint(idx)
-                
-                outName = args.out if args.out else args.file
-                df.to_excel(outName, index=False)
-        window['-log-'].update(value=conf.GUILogger.buffer)
+            meta_dict['process'] = not(meta_dict['process'])
+            window['-Toggle-'].update(text = 'Pause' if meta_dict['process'] else 'Start')
+        process()
+        window['-Log-'].update(value=conf.GUILogger.buffer)
     window.close()
-
+df = None
 window = createMainWindow()
-# lh = GUILogger(logging.INFO)
+meta_dict = {'process':False}
 
 if __name__ == '__main__':
     main()
