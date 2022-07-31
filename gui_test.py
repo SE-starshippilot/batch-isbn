@@ -15,6 +15,9 @@ def createMainWindow():
     checkbox_list = [
             sg.Checkbox(
                 text='add retrived info', key='-Add-'
+            ),
+            sg.Checkbox(
+                text='reset progress', key='-Reset-'
             )
         ]
     progress_list = [
@@ -119,30 +122,30 @@ def process():
 
 def main():
     global lh, window, meta_dict, df
-    preview = None
-    start=False
     while True:
         event, value = window.read(timeout=10)
         if event == 'Goodbye' or event == sg.WINDOW_CLOSED:
             break
         if event == '-File-':
             df = importData(value['Browse'], True)
-            # print(value)
             meta_dict = readCheckpoint(value)
             meta_dict['end'] = len(df.index)
             window['-Prog-'].update(current_count=meta_dict['start'], max=meta_dict['end'])
             window['-Add-'].update(value=meta_dict['-Add-'], disabled=True)
             window['-Toggle-'].update(disabled=False)
-            print(meta_dict)
         if event == '-Toggle-':
+            window['-Reset-'].update(disabled=True)
             meta_dict['process'] = not(meta_dict['process'])
             window['-Toggle-'].update(text = 'Pause' if meta_dict['process'] else 'Start')
         process()
         window['-Log-'].update(value=conf.GUILogger.buffer)
+    sg.popup(f'Saving checkpoint at {meta_dict["start"]}',title='Close')
+    writeCheckpoint(meta_dict)    
     window.close()
+
 df = None
 window = createMainWindow()
-meta_dict = {'process':False}
+meta_dict = {'process':False, 'start':0, 'end':-1}
 
 if __name__ == '__main__':
     main()

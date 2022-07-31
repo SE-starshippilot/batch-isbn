@@ -62,6 +62,9 @@ def readCheckpoint(attr_dict:dict)->dict:
             read_dict = json.load(f)
             try:
                 start_index = read_dict['start']
+                if attr_dict['-Reset-']: 
+                    start_index=0
+                    updateBuffer("Checkpoint Resetted")
             except Exception:
                 traceback.print_exc()
                 updateBuffer('Corrupted checkpoint file. Resetting to 0.')
@@ -76,6 +79,7 @@ def writeCheckpoint(attr_dict:dict)->None:
     Write the checkpoint attribute as a json file for possible restoration.
     """
     ckpt_file_name = f"{attr_dict['-File-'][:attr_dict['-File-'].rfind('.')]}_ckpt.json"
+    updateBuffer(f'Saving checkpoint at {attr_dict["start"]}')
     with open(ckpt_file_name, 'w') as f:
         json.dump(attr_dict, f, indent=2)
 
