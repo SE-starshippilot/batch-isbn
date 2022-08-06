@@ -15,9 +15,6 @@ def createMainWindow():
     checkbox_list = [
             sg.Checkbox(
                 text='add retrived info', key='-Add-'
-            ),
-            sg.Checkbox(
-                text='reset progress', key='-Reset-'
             )
         ]
     progress_list = [
@@ -38,11 +35,14 @@ def createMainWindow():
             sg.In(
                 size=(50, 1), enable_events=True, key='-File-', 
             ),
-            sg.FileBrowse()
+            sg.FileBrowse(file_types=(("Excel Files", ".xls .xlsx")), key='-Path-')
         ],
         [
             sg.Button(
-                button_text='preview', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Preview-'
+                button_text='preview', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Preview-', button_color='black on grey'
+            ),
+            sg.Button(
+                button_text='reset progress', tooltip='reset the checkpoint of this file', disabled=True, enable_events=True, key='-Reset-', button_color='black on grey'
             ),
             sg.Button(
                 button_text='save as...', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Save-', button_color='black on grey'
@@ -51,7 +51,7 @@ def createMainWindow():
         checkbox_list,
         [
             sg.Button(
-                button_text='Start', tooltip='begin/start the process', disabled=True, enable_events=True, key='-Toggle-'
+                button_text='Start', tooltip='begin/start the process', disabled=True, enable_events=True, key='-Toggle-', button_color='black on grey'
             )
         ]
     ]
@@ -62,16 +62,23 @@ def createMainWindow():
             sg.Column(progress_list)
         ]
     ]
-    return sg.Window(title='Batch ISBN Retriver v0.1', layout=layout, size=(800, 800))
+    return sg.Window(title='Batch ISBN Retriver v0.1', layout=layout, size=(800, 800), modal=False)
 
-def createPreviewWindow(headings, contents):
-    # header = [sg.Text(i) for i in heading]
-    layout = [[sg.Table(values=contents, headings=headings)]]
-    return sg.Window(title='Preview', layout=layout)
-
-def process():
+def preview(df:pd.DataFrame):
+    df_headings = list(df.columns)
+    df_vals = df.loc[1:, :].fillna('')
+    df_vals = df_vals.values.tolist()
+    layout = [[sg.Table(headings=df_headings, values=df_vals)]]
+    preview_window = sg.Window('Preview', layout, modal=True)
+    while True:
+        event, values = preview_window.read()
+        if event == "Exit" or event == sg.WIN_CLOSED:
+            break
+    preview_window.close()
+ 
+def process(df:pd.DataFrame):
     import traceback
-    global df, logger, meta_dict, window
+    global meta_dict, window
 
     if meta_dict['process'] and meta_dict['start'] < meta_dict['end']:
         curr_index = meta_dict['start'] + 1
@@ -119,28 +126,44 @@ def process():
     
     # df.to_excel(meta_dict['-File-'], index=False)
 
+def changeButtonAvail(disable:bool, *args):
+    global window
+    for arg in args:
+        window[arg].update(disabled=disable, button_color=conf.BUTTON_APPEARANCE[disable])
 
 def main():
-    global lh, window, meta_dict, df
+    global window, meta_dict, df
     while True:
         event, value = window.read(timeout=10)
         if event == 'Goodbye' or event == sg.WINDOW_CLOSED:
             break
         if event == '-File-':
-            df = importData(value['Browse'], True)
-            meta_dict = readCheckpoint(value)
+            df = importData(value['-File-'], True)
+            meta_dict.update(readCheckpoint(value))
             meta_dict['end'] = len(df.index)
+            if meta_dict['start']:
+                window['-Add-'].update(value=meta_dict['-Add-'], disabled=True)
             window['-Prog-'].update(current_count=meta_dict['start'], max=meta_dict['end'])
-            window['-Add-'].update(value=meta_dict['-Add-'], disabled=True)
-            window['-Toggle-'].update(disabled=False)
+            changeButtonAvail(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-')
         if event == '-Toggle-':
-            window['-Reset-'].update(disabled=True)
+            window['-Add-'].update(disabled=True)
             meta_dict['process'] = not(meta_dict['process'])
+            changeButtonAvail(meta_dict['process'], '-Reset-', '-Preview-', '-Save-')
             window['-Toggle-'].update(text = 'Pause' if meta_dict['process'] else 'Start')
-        process()
+        if event == '-Reset-':
+            updateBuffer('Resetted progress', clear=True)
+            meta_dict['start'] = 0
+            writeCheckpoint(meta_dict)
+            window['-Prog-'].update(current_count=0)
+            window['-Add-'].update(disabled=False)
+        if event == '-Preview-':
+            changeButtonAvail(True, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
+            preview(df)
+            changeButtonAvail(False, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
+        process(df)
         window['-Log-'].update(value=conf.GUILogger.buffer)
-    sg.popup(f'Saving checkpoint at {meta_dict["start"]}',title='Close')
-    writeCheckpoint(meta_dict)    
+    if writeCheckpoint(meta_dict):
+        sg.popup(f'Saving checkpoint at {meta_dict["start"]}',title='Close')
     window.close()
 
 df = None

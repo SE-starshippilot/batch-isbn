@@ -9,10 +9,10 @@ A script for batch acquiring book isbn using Open Library APIs
 - Will fall into manual searching if any of the field is left blank
 ## TO-DOs:
 - [ ] Implement async and multithread queries
-- [ ] More flexible input format
+- [ ] More flexible carrier
 - [ ] Thorough Doccumentation
 - [ ] Counter Amazon and Douban's anti-scrapping technique
-- [ ] GUI
-- [ ] Logging
+- [x] Logging
+- [ ] Changing 'Reset' from tickbox to button
 ## Contribution, Suggestions and Bugs
 Currently I do not accept any pull requests, but feel free to create issues if you encounter bugs.

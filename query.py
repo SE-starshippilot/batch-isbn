@@ -62,7 +62,7 @@ def getBookInfo(currentRow:pd.Series)->list:
         for attr in conf.QUERY_FIELDS: # check if title and author matches
             retAttr = firstWork.get(attr)
             if retAttr is None or isWrongInfo(retAttr, currentRow[conf.QUERY_2_EXCEL[attr]]): 
-                raise AutomateError(f"the retrived book's {attr} doesn't match")
+                raise AutomateError(f"the retrived book's {attr} doesn't ma··tch")
             bookInfo[attr] = retAttr
         logging.info(f'Matching editions:')
         editionInfo = getBestMatchEdition(firstWork.get('edition_key'))

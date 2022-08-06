@@ -61,30 +61,31 @@ def readCheckpoint(attr_dict:dict)->dict:
         with open(ckpt_file_name, 'r') as f:
             read_dict = json.load(f)
             try:
-                start_index = read_dict['start']
-                if attr_dict['-Reset-']: 
-                    start_index=0
-                    updateBuffer("Checkpoint Resetted")
+                updateBuffer(f"Restored checkpoint at {read_dict['start']}")
+                attr_dict = read_dict
             except Exception:
                 traceback.print_exc()
                 updateBuffer('Corrupted checkpoint file. Resetting to 0.')
                 writeCheckpoint(attr_dict)
-            else:
-                updateBuffer(f"Restored checkpoint at {start_index}")
-                attr_dict = read_dict
     return attr_dict        
 
 def writeCheckpoint(attr_dict:dict)->None:
     """
-    Write the checkpoint attribute as a json file for possible restoration.
+    Write the checkpoint attribute as a json file for possible restoration. Return False if error occured.
     """
-    ckpt_file_name = f"{attr_dict['-File-'][:attr_dict['-File-'].rfind('.')]}_ckpt.json"
-    updateBuffer(f'Saving checkpoint at {attr_dict["start"]}')
-    with open(ckpt_file_name, 'w') as f:
-        json.dump(attr_dict, f, indent=2)
+    try:
+        ckpt_file_name = f"{attr_dict['-File-'][:attr_dict['-File-'].rfind('.')]}_ckpt.json"
+        with open(ckpt_file_name, 'w') as f:
+            json.dump(attr_dict, f, indent=2)
+        return True
+    except KeyError as ke:
+        return False
 
-def updateBuffer(message):
-    GUILogger.buffer += f'{message}\n'
+def updateBuffer(message, clear=False):
+    if clear:
+        GUILogger.buffer = f'{message}\n'
+    else:
+        GUILogger.buffer += f'{message}\n'
     
 
 def debug():
