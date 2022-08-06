@@ -22,33 +22,6 @@ PHYSICAL_FORMAT_MAP={
     "mass market paperback": 0.8,
     "hardcover": 0.2
 }
-LOGGING_CONFIGURE = {
-    "version" : 1,
-    "root" : {
-        "handlers" : ["console", "file"],
-        "level" : "INFO"
-    },
-    "handlers" : {
-        "console" : {
-            "class" : "logging.StreamHandler",
-            "stream"  : "ext://sys.stdout",
-            "formatter" : "fmt",
-            "level" : "WARNING"
-        },
-        "file" : {
-            "class" : "logging.FileHandler",
-            "filename" : "access-file.log",
-            "formatter" : "fmt",
-            "mode" : "w"
-        }
-    },
-    "formatters" : {
-        "fmt" : {
-            "format" : "%(asctime)s [%(levelname)s]:%(message)s",
-            "datefmt" : "%m-%d %H:%M:%S"
-        }
-    }
-}
 CHINESE_BOOK_SEARCH_URL = "https://search.douban.com/book/subject_search?search_text="
 ENGLISH_BOOK_SEARCH_URL = "https://www.amazon.com/s?k="
 BUTTON_APPEARANCE = {True:"black on grey", False:"white on dark blue"}
