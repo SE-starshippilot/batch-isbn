@@ -3,6 +3,7 @@ import json
 import time
 import pandas as pd
 import PySimpleGUI as sg
+from functools import wraps
 
 import logging.config
 from query import *
@@ -44,8 +45,9 @@ def createMainWindow():
             sg.Button(
                 button_text='reset progress', tooltip='reset the checkpoint of this file', disabled=True, enable_events=True, key='-Reset-', button_color='black on grey'
             ),
-            sg.Button(
-                button_text='save as...', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Save-', button_color='black on grey'
+            sg.In(key='Save As', enable_events=True, visible=False),
+            sg.FileSaveAs(
+                button_text='save as...', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Save-', button_color='black on grey', file_types=(('Excel Files', '.xls .xlsx .csv'),), default_extension='xlsx'
             )
         ],
         checkbox_list,
@@ -64,6 +66,19 @@ def createMainWindow():
     ]
     return sg.Window(title='Batch ISBN Retriver v0.1', layout=layout, size=(800, 800), modal=False)
 
+def modalize(window_func):
+    """
+    Disable the buttons on the main window so that only one function is active.
+    """
+    @wraps(window_func)
+    def wrap_window(*args, **kwargs):
+            changeButtonAvail(True, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
+            window_func(*args, **kwargs)
+            changeButtonAvail(False, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
+    return wrap_window
+
+
+@modalize
 def preview(df:pd.DataFrame):
     df_headings = list(df.columns)
     df_vals = df.loc[1:, :].fillna('')
@@ -75,6 +90,11 @@ def preview(df:pd.DataFrame):
         if event == "Exit" or event == sg.WIN_CLOSED:
             break
     preview_window.close()
+
+
+@modalize
+def save_as(df:pd.DataFrame):
+    pass
  
 def process(df:pd.DataFrame):
     import traceback
@@ -141,10 +161,12 @@ def main():
             df = importData(value['-File-'], True)
             meta_dict.update(readCheckpoint(value))
             meta_dict['end'] = len(df.index)
+            meta_dict['save_path'] = meta_dict['-File-']
             if meta_dict['start']:
                 window['-Add-'].update(value=meta_dict['-Add-'], disabled=True)
             window['-Prog-'].update(current_count=meta_dict['start'], max=meta_dict['end'])
             changeButtonAvail(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-')
+            updateBuffer('Default saving to the original file.')
         if event == '-Toggle-':
             window['-Add-'].update(disabled=True)
             meta_dict['process'] = not(meta_dict['process'])
@@ -157,13 +179,14 @@ def main():
             window['-Prog-'].update(current_count=0)
             window['-Add-'].update(disabled=False)
         if event == '-Preview-':
-            changeButtonAvail(True, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
             preview(df)
-            changeButtonAvail(False, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
+        if event == 'Save As':
+            meta_dict['save_path'] = value['-Save-']
+            updateBuffer(f'Now saving to {meta_dict["save_path"]}')
         process(df)
         window['-Log-'].update(value=conf.GUILogger.buffer)
-    if writeCheckpoint(meta_dict):
-        sg.popup(f'Saving checkpoint at {meta_dict["start"]}',title='Close')
+    writeCheckpoint(meta_dict, df)
+    sg.popup(f'Saving checkpoint at {meta_dict["start"]}',title='Close')
     window.close()
 
 df = None
