@@ -36,7 +36,7 @@ def createMainWindow():
             sg.In(
                 size=(50, 1), enable_events=True, key='-File-', 
             ),
-            sg.FileBrowse(file_types=(("Excel Files", ".xls .xlsx")), key='-Path-')
+            sg.FileBrowse(file_types=[("Excel Files", ".xls .xlsx"),], key='-Path-')
         ],
         [
             sg.Button(
@@ -158,7 +158,7 @@ def main():
         if event == 'Goodbye' or event == sg.WINDOW_CLOSED:
             break
         if event == '-File-':
-            df = importData(value['-File-'], True)
+            df = importData(value['-File-'])
             meta_dict.update(readCheckpoint(value))
             meta_dict['end'] = len(df.index)
             meta_dict['save_path'] = meta_dict['-File-']
@@ -169,6 +169,13 @@ def main():
             updateBuffer('Default saving to the original file.')
         if event == '-Toggle-':
             window['-Add-'].update(disabled=True)
+            meta_dict['-Add-'] = value['-Add-']
+            if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != meta_dict['-Add-']:
+                foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
+                if meta_dict['-Add-']:
+                    df = pd.concat([df, pd.DataFrame(columns=foundAttrName)])
+                else:
+                    df = df.drop(foundAttrName, axis=1)
             meta_dict['process'] = not(meta_dict['process'])
             changeButtonAvail(meta_dict['process'], '-Reset-', '-Preview-', '-Save-')
             window['-Toggle-'].update(text = 'Pause' if meta_dict['process'] else 'Start')
@@ -185,7 +192,8 @@ def main():
             updateBuffer(f'Now saving to {meta_dict["save_path"]}')
         process(df)
         window['-Log-'].update(value=conf.GUILogger.buffer)
-    writeCheckpoint(meta_dict, df)
+    writeCheckpoint(meta_dict)
+    df.to_excel(meta_dict['save_path'], index=False)
     sg.popup(f'Saving checkpoint at {meta_dict["start"]}',title='Close')
     window.close()
 

@@ -35,15 +35,10 @@ def getInputDir(fileName: str)->str:
         else:
             return fileDir
 
-def importData(inputFileName:str, addColumn:bool)->pd.DataFrame:
+def importData(inputFileName:str)->pd.DataFrame:
     df = pd.read_excel(inputFileName, sheet_name=conf.SHEET_INDEX)
     if 'Notes' not in df:
         df['Notes'] = ''
-    if addColumn:
-        for attr in conf.EXCEL_FIELDS:
-            foundAttrName = attr + conf.FOUND_ATTRIBUTE_POSTFIX
-            if not(foundAttrName in df.columns):
-                df[attr + conf.FOUND_ATTRIBUTE_POSTFIX] = ''
     return df
 
 
@@ -69,14 +64,13 @@ def readCheckpoint(attr_dict:dict)->dict:
                 writeCheckpoint(attr_dict)
     return attr_dict        
 
-def writeCheckpoint(attr_dict:dict, df:pd.DataFrame)->None:
+def writeCheckpoint(attr_dict:dict)->None:
     """
     Write the checkpoint attribute as a json file for possible restoration. Return False if error occured.
     """
     ckpt_file_name = f"{attr_dict['-File-'][:attr_dict['-File-'].rfind('.')]}_ckpt.json"
     with open(ckpt_file_name, 'w') as cf:
         json.dump(attr_dict, cf, indent=2)
-    df.to_excel(attr_dict['save_path'], index=False)
 
 def updateBuffer(message, clear=False):
     if clear:
