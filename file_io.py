@@ -1,87 +1,37 @@
 import os
-import traceback
-import json
-import pandas as pd
-import tkinter as tk
-from tkinter.filedialog import askopenfilename
-import config as conf
-from config import GUILogger
+import base64
+import pickle
+from functools import wraps
+from pathlib import Path
 
+from utils import updateBuffer, getb64encode
 
-def getInputDir(fileName: str)->str:
-    """
-    Ask user for the excel file for processing. Returns absolute path to the file.
-    """
-    while True:
-        try:
-            root = tk.Tk()
-            root.withdraw()
-            if fileName:
-                fileDir = fileName
-            else:
-                fileDir = askopenfilename(
-                    title = 'Select the Excel file to process',
-                    filetypes=[("Excel files", "*.xlsx *.xls")]
-                )
-                root.destroy()
-            if not(os.path.exists(fileDir)):
-                raise NameError
-        except NameError:
-            tk.messagebox.showerror(
-                title = 'Error', 
-                message = 'You have not selected a valid file.'
-            )
-            fileName = None
+getCkptPath = lambda x: os.path.join(os.getcwd(), '.tmp', f'{getb64encode(x)}.pkl')
+
+def maintainCheckpoint(io_func):
+    @wraps(io_func)
+    def io_func_wrapper(attr_dict:dict):
+        ckpt_file_path = getCkptPath(attr_dict["input_path"])
+        mode = 'rb' if io_func.__name__ == 'readCheckpoint' else 'wb'
+        if os.path.exists(ckpt_file_path):
+            with open(ckpt_file_path, mode) as cf:
+                io_func(cf, attr_dict)
+            updateBuffer(f'{io_func.__doc__.strip()} at {attr_dict["start"]}')
         else:
-            return fileDir
+            attr_dict.update({'save_path':attr_dict['input_path']})
+            Path(ckpt_file_path).touch()
+    return io_func_wrapper
 
-def importData(inputFileName:str)->pd.DataFrame:
-    df = pd.read_excel(inputFileName, sheet_name=conf.SHEET_INDEX)
-    if 'Notes' not in df:
-        df['Notes'] = ''
-    return df
-
-
-def readCheckpoint(attr_dict:dict)->dict:
+@maintainCheckpoint
+def readCheckpoint(file_writer:str, attr_dict:dict)->dict:
     """
-    Read the checkpoint file and return the index of the latest modified item.
-    A checkpoint file will be generated if it's absent
+    Restore checkpoint
     """
-    attr_dict['start'] = 0
-    ckpt_file_name = f"{attr_dict['-File-'][:attr_dict['-File-'].rfind('.')]}_ckpt.json"
-    if not(os.path.exists(ckpt_file_name)):
-        updateBuffer(f'Generating checkpoint for file{attr_dict["-File-"]}')
-        writeCheckpoint(attr_dict)
-    else:
-        with open(ckpt_file_name, 'r') as f:
-            read_dict = json.load(f)
-            try:
-                updateBuffer(f"Restored checkpoint at {read_dict['start']}")
-                attr_dict = read_dict
-            except Exception:
-                traceback.print_exc()
-                updateBuffer('Corrupted checkpoint file. Resetting to 0.')
-                writeCheckpoint(attr_dict)
-    return attr_dict        
+    attr_dict.update(pickle.load(file_writer))
 
-def writeCheckpoint(attr_dict:dict)->None:
+@maintainCheckpoint
+def writeCheckpoint(file_writer:str, attr_dict:dict)->None:
     """
-    Write the checkpoint attribute as a json file for possible restoration. Return False if error occured.
+    Write checkpoint
     """
-    ckpt_file_name = f"{attr_dict['-File-'][:attr_dict['-File-'].rfind('.')]}_ckpt.json"
-    with open(ckpt_file_name, 'w') as cf:
-        json.dump(attr_dict, cf, indent=2)
-
-def updateBuffer(message, clear=False):
-    if clear:
-        GUILogger.buffer = f'{message}\n'
-    else:
-        GUILogger.buffer += f'{message}\n'
-    
-
-def debug():
-    f = '/Users/shitianhao/Documents/lib work/LibGuides Spring 2022.xls'
-    df = pd.read_excel(f)
-
-if __name__ == '__main__':
-    debug()
+    pickle.dump(attr_dict, file_writer)

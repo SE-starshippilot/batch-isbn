@@ -1,11 +1,8 @@
-import logging
-import json
 import time
 import pandas as pd
 import PySimpleGUI as sg
 from functools import wraps
 
-import logging.config
 from query import *
 from file_io import *
 from utils import *
@@ -15,7 +12,7 @@ import config as conf
 def createMainWindow():
     checkbox_list = [
             sg.Checkbox(
-                text='add retrived info', key='-Add-'
+                text='add retrived info', key='-Add-', disabled=True
             )
         ]
     progress_list = [
@@ -34,7 +31,7 @@ def createMainWindow():
         [   
             sg.Text("Select an excel doccument"),
             sg.In(
-                size=(50, 1), enable_events=True, key='-File-', 
+                size=(50, 1), enable_events=True, key='-File-', readonly=True
             ),
             sg.FileBrowse(file_types=[("Excel Files", ".xls .xlsx"),], key='-Path-')
         ],
@@ -53,7 +50,7 @@ def createMainWindow():
         checkbox_list,
         [
             sg.Button(
-                button_text='Start', tooltip='begin/start the process', disabled=True, enable_events=True, key='-Toggle-', button_color='black on grey'
+                button_text='Start', tooltip='begin/halt the process', disabled=True, enable_events=True, key='-Toggle-', button_color='black on grey'
             )
         ]
     ]
@@ -64,7 +61,7 @@ def createMainWindow():
             sg.Column(progress_list)
         ]
     ]
-    return sg.Window(title='Batch ISBN Retriver v0.1', layout=layout, size=(800, 800), modal=False)
+    return sg.Window(title='Batch ISBN Retriver v0.1', layout=layout, size=(800, 800), modal=False, metadata=conf.INITIAL_METADICT)
 
 def modalize(window_func):
     """
@@ -72,11 +69,10 @@ def modalize(window_func):
     """
     @wraps(window_func)
     def wrap_window(*args, **kwargs):
-            changeButtonAvail(True, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
+            setElementDisable(True, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
             window_func(*args, **kwargs)
-            changeButtonAvail(False, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
+            setElementDisable(False, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
     return wrap_window
-
 
 @modalize
 def preview(df:pd.DataFrame):
@@ -91,20 +87,29 @@ def preview(df:pd.DataFrame):
             break
     preview_window.close()
 
-
 @modalize
-def save_as(df:pd.DataFrame):
-    pass
- 
+def choice():
+    quit_program = True
+    choice_window = sg.Window('Finished processing.', [[sg.T('Do you want to process another file?')], [sg.Yes(s=10), sg.No(s=10)]], disable_close=True)
+    while True:
+        event, value = choice_window.read()
+        if event == 'Yes' or event == sg.WIN_CLOSED:
+            quit_program = False
+            break
+        if event == 'No':
+            break
+    choice_window.close()
+    return quit_program
+
 def process(df:pd.DataFrame):
     import traceback
-    global meta_dict, window
+    global window
 
-    if meta_dict['process'] and meta_dict['start'] < meta_dict['end']:
-        curr_index = meta_dict['start'] + 1
+    if window.metadata['process'] and window.metadata['incomplete']:
+        curr_index = window.metadata['start'] + 1
         window['-Prog-'].update(current_count=curr_index)
         try:
-            # for idx in range(meta_dict['start'], meta_dict['end']):
+            # for idx in range(window.metadata['start'], window.metadata['end']):
             #     currentRow = df.loc[idx, :]
             updateBuffer(curr_index)
             time.sleep(0.01)
@@ -112,10 +117,15 @@ def process(df:pd.DataFrame):
             updateBuffer("Some error occured, saving checkpoint and quitting")
             traceback.print_exc()
         else:
-            meta_dict['start'] = curr_index
+            window.metadata['start'] = curr_index
+            window.metadata['incomplete'] = window.metadata['start'] < window.metadata['end']
         window['-Log-'].update(value=conf.GUILogger.buffer)
-    if meta_dict['start'] == meta_dict['end']:
-        window['-Toggle-'].update(disabled=True)
+    if not(window.metadata['incomplete']) and window.metadata['process']:
+        df.to_excel(window.metadata['save_path'], index=False)
+        updateBuffer('Removing checkpoint')
+        setElementDisable(True, '-Toggle-')
+        setElementDisable(False, '-Reset-', '-Preview-', '-Save-')
+        window.metadata['process'] = False
         #         updateBuffer(f'Handling Book: {df.loc[idx, "Title"]}')
         #         if isinstance(currentRow['ISBN'], str): # the ISBN field is not empty
         #             df.loc[idx, 'Notes'] = 'ISBN already available'
@@ -135,7 +145,7 @@ def process(df:pd.DataFrame):
         #                 else:
         #                     updateBuffer(f"Found ISBN: {bookInfo['ISBN']}")
         #                     df.loc[idx, 'ISBN'] = bookInfo['ISBN']
-        #         if meta_dict['-Add-']:
+        #         if window.metadata['-Add-']:
         #             updateBuffer(f"Writing found information into file...")
         #             for attr in conf.EXCEL_FIELDS:
         #                 attrValue = bookInfo.get(attr, '')
@@ -143,63 +153,77 @@ def process(df:pd.DataFrame):
         #                 df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
         #             updateBuffer(f"Done.")
         
-    
-    # df.to_excel(meta_dict['-File-'], index=False)
+def quitting(df:pd.DataFrame):
+    global window
+    writeCheckpoint(window.metadata)
+    if window.metadata['incomplete']:
+        df.to_excel(window.metadata['save_path'], index=False)
+        sg.popup(f'Saving checkpoint at {window.metadata["start"]}',title='Close')
+    else:
+        ckpt_file_path = getCkptPath(window.metadata["input_path"])
+        os.remove(ckpt_file_path)
 
-def changeButtonAvail(disable:bool, *args):
+
+def setElementDisable(disable:bool, *args):
     global window
     for arg in args:
-        window[arg].update(disabled=disable, button_color=conf.BUTTON_APPEARANCE[disable])
+        element = window[arg]
+        if isinstance(element, sg.PySimpleGUI.Button):
+            element.update(disabled=disable, button_color=conf.BUTTON_APPEARANCE[disable])
+        else:
+            element.update(disabled=disable)
 
 def main():
-    global window, meta_dict, df
+    global window, df
     while True:
         event, value = window.read(timeout=10)
         if event == 'Goodbye' or event == sg.WINDOW_CLOSED:
+            quitting(df)
             break
         if event == '-File-':
-            df = importData(value['-File-'])
-            meta_dict.update(readCheckpoint(value))
-            meta_dict['end'] = len(df.index)
-            meta_dict['save_path'] = meta_dict['-File-']
-            if meta_dict['start']:
-                window['-Add-'].update(value=meta_dict['-Add-'], disabled=True)
-            window['-Prog-'].update(current_count=meta_dict['start'], max=meta_dict['end'])
-            changeButtonAvail(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-')
-            updateBuffer('Default saving to the original file.')
+            window.metadata['input_path'] = value['-File-']
+            df = pd.read_excel(value['-File-'], sheet_name=conf.SHEET_INDEX)
+            readCheckpoint(window.metadata) # what should be updated: th
+            window.metadata['end'] = len(df.index)
+            window['-Prog-'].update(current_count=window.metadata['start'], max=window.metadata['end'])
+            setElementDisable(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Add-')
+            updateBuffer(f'Saving result to {window.metadata["save_path"]}.')
         if event == '-Toggle-':
-            window['-Add-'].update(disabled=True)
-            meta_dict['-Add-'] = value['-Add-']
-            if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != meta_dict['-Add-']:
+            setElementDisable(True, '-Add-')
+            window.metadata['append'] = value['-Add-'] # unnecessary?
+            if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != window.metadata['append']:
                 foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
-                if meta_dict['-Add-']:
+                if window.metadata['append']:
                     df = pd.concat([df, pd.DataFrame(columns=foundAttrName)])
                 else:
                     df = df.drop(foundAttrName, axis=1)
-            meta_dict['process'] = not(meta_dict['process'])
-            changeButtonAvail(meta_dict['process'], '-Reset-', '-Preview-', '-Save-')
-            window['-Toggle-'].update(text = 'Pause' if meta_dict['process'] else 'Start')
+            window.metadata['process'] = not(window.metadata['process'])
+            setElementDisable(window.metadata['process'], '-Reset-', '-Preview-', '-Save-')
+            window['-Toggle-'].update(text = 'Pause' if window.metadata['process'] else 'Start')
         if event == '-Reset-':
+            setElementDisable(False, '-Toggle-')
+            window['-Toggle-'].update(text='start')
             updateBuffer('Resetted progress', clear=True)
-            meta_dict['start'] = 0
-            writeCheckpoint(meta_dict)
+            window.metadata['start'] = 0
             window['-Prog-'].update(current_count=0)
             window['-Add-'].update(disabled=False)
+            window.metadata['incomplete'] = True
+            if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}') in df.columns:
+                keep_cols = [_ for _ in df.columns if not(_.endswith(conf.FOUND_ATTRIBUTE_POSTFIX))]
+                df = pd.DataFrame(df[keep_cols], columns=df.columns)
+            # writeCheckpoint(window.metadata)
         if event == '-Preview-':
             preview(df)
         if event == 'Save As':
-            meta_dict['save_path'] = value['-Save-']
-            updateBuffer(f'Now saving to {meta_dict["save_path"]}')
+            window.metadata['save_path'] = value['-Save-']
+            updateBuffer(f'Now saving to {window.metadata["save_path"]}')
         process(df)
         window['-Log-'].update(value=conf.GUILogger.buffer)
-    writeCheckpoint(meta_dict)
-    df.to_excel(meta_dict['save_path'], index=False)
-    sg.popup(f'Saving checkpoint at {meta_dict["start"]}',title='Close')
     window.close()
 
 df = None
+os.makedirs(f'{os.getcwd()}/.tmp', exist_ok=True)
 window = createMainWindow()
-meta_dict = {'process':False, 'start':0, 'end':-1}
 
 if __name__ == '__main__':
     main()

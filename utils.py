@@ -1,19 +1,13 @@
 import re
-import json
-import logging
-import argparse
+import base64
 import numpy as np
-import pandas as pd
-
-import config as conf
 from fuzzywuzzy import fuzz
 
-class AutomateError(Exception):
-    def __init__(self, message: str, *args: object) -> None:
-        logging.error(message)
+import config as conf
+from config import GUILogger
 
 truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
-
+getb64encode = lambda s: base64.b64encode(s.encode("ascii"))
 convert = lambda attr: conf.EXCEL_FIELD_MAP[attr]
 
 def strMatch(found: str, correct: str) -> float:
@@ -89,42 +83,17 @@ def isWrongInfo(found:any, correct:any)->bool:
                 return False
         return True
 
-def configparser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', type = str, help='Specify the input file. Specifying this argument will disable GUI.')
-    parser.add_argument('-o', '--out', type = str, help='Specify the output file. Not specifying this argument will overwrite existing file.')
-    parser.add_argument('-v', '--verbose', action = 'store_true', help = 'Show details when running. Default not shown.')
-    parser.add_argument('-a', '--addColumns', action='store_true', help='Append the found attributes to the file. Default not added.')
-    return parser.parse_args()
-
-def configlogger(verbose:bool):
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-
-    fh = logging.FileHandler('experiment.log')
-    fh.setLevel(logging.INFO)
-
-    ch = logging.StreamHandler()
-    if verbose:
-        ch.setLevel(logging.INFO) 
-    else:
-        ch.setLevel(logging.WARNING)
-
-    fmt = logging.Formatter('%(asctime)s [%(levelname)s]:%(message)s')
-
-    fh.setFormatter(fmt)
-    ch.setFormatter(fmt)
-
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-    return logger
-
 def debug():
     global conf
     lista = ['abc', 'def', 'ghi']
     listb = ['zmk', 'zzz', 'kas']
     print(isWrongInfo(lista, listb))
+
+def updateBuffer(message, clear=False):
+    if clear:
+        GUILogger.buffer = f'{message}\n'
+    else:
+        GUILogger.buffer += f'{message}\n'
 
 if __name__ == '__main__':
     debug()

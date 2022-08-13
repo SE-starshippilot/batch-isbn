@@ -25,6 +25,7 @@ PHYSICAL_FORMAT_MAP={
 CHINESE_BOOK_SEARCH_URL = "https://search.douban.com/book/subject_search?search_text="
 ENGLISH_BOOK_SEARCH_URL = "https://www.amazon.com/s?k="
 BUTTON_APPEARANCE = {True:"black on grey", False:"white on dark blue"}
+INITIAL_METADICT = {'input_path': '', 'save_path':'', 'start': -1, 'end': 0, 'process': False, 'append':False, 'incomplete':True}
 class GUILogger():
     buffer = ''
 
