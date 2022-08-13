@@ -33,24 +33,24 @@ def createMainWindow():
             sg.In(
                 size=(50, 1), enable_events=True, key='-File-', readonly=True
             ),
-            sg.FileBrowse(file_types=[("Excel Files", ".xls .xlsx"),], key='-Path-')
+            sg.FileBrowse(file_types=[("Excel Files", ".xls .xlsx"),], key='-Path-', button_color=('white', '#a2b5bb'))
         ],
         [
             sg.Button(
-                button_text='preview', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Preview-', button_color='black on grey'
+                button_text='preview', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Preview-', button_color=('black', 'grey')
             ),
             sg.Button(
-                button_text='reset progress', tooltip='reset the checkpoint of this file', disabled=True, enable_events=True, key='-Reset-', button_color='black on grey'
+                button_text='reset progress', tooltip='reset the checkpoint of this file', disabled=True, enable_events=True, key='-Reset-', button_color=('black', 'grey')
             ),
             sg.In(key='Save As', enable_events=True, visible=False),
             sg.FileSaveAs(
-                button_text='save as...', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Save-', button_color='black on grey', file_types=(('Excel Files', '.xls .xlsx .csv'),), default_extension='xlsx'
+                button_text='save as...', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Save-', button_color=('black', 'grey'), file_types=(('Excel Files', '.xls .xlsx .csv'),), default_extension='xlsx'
             )
         ],
         checkbox_list,
         [
             sg.Button(
-                button_text='Start', tooltip='begin/halt the process', disabled=True, enable_events=True, key='-Toggle-', button_color='black on grey'
+                button_text='Start', tooltip='begin/halt the process', disabled=True, enable_events=True, key='-Toggle-', button_color=('black', 'grey')
             )
         ]
     ]
@@ -61,7 +61,7 @@ def createMainWindow():
             sg.Column(progress_list)
         ]
     ]
-    return sg.Window(title='Batch ISBN Retriver v0.1', layout=layout, size=(800, 800), modal=False, metadata=conf.INITIAL_METADICT)
+    return sg.Window(title='Batch ISBN Retriver v0.3', layout=layout, size=(800, 800), modal=False, metadata=conf.INITIAL_METADICT)
 
 def modalize(window_func):
     """
@@ -157,8 +157,9 @@ def quitting(df:pd.DataFrame):
     global window
     writeCheckpoint(window.metadata)
     if window.metadata['incomplete']:
-        df.to_excel(window.metadata['save_path'], index=False)
-        sg.popup(f'Saving checkpoint at {window.metadata["start"]}',title='Close')
+        if df:
+            df.to_excel(window.metadata['save_path'], index=False)
+            sg.popup(f'Saving checkpoint at {window.metadata["start"]}',title='Close')
     else:
         ckpt_file_path = getCkptPath(window.metadata["input_path"])
         os.remove(ckpt_file_path)
@@ -182,12 +183,15 @@ def main():
             break
         if event == '-File-':
             window.metadata['input_path'] = value['-File-']
-            df = pd.read_excel(value['-File-'], sheet_name=conf.SHEET_INDEX)
-            readCheckpoint(window.metadata) # what should be updated: th
-            window.metadata['end'] = len(df.index)
-            window['-Prog-'].update(current_count=window.metadata['start'], max=window.metadata['end'])
-            setElementDisable(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Add-')
-            updateBuffer(f'Saving result to {window.metadata["save_path"]}.')
+            try:
+                df = pd.read_excel(value['-File-'], sheet_name=conf.SHEET_INDEX)
+                readCheckpoint(window.metadata) # what should be updated: th
+                window.metadata['end'] = len(df.index)
+                window['-Prog-'].update(current_count=window.metadata['start'], max=window.metadata['end'])
+                setElementDisable(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Add-')
+                updateBuffer(f'Saving result to {window.metadata["save_path"]}.')
+            except Exception as e:
+                pass
         if event == '-Toggle-':
             setElementDisable(True, '-Add-')
             window.metadata['append'] = value['-Add-'] # unnecessary?
@@ -222,6 +226,10 @@ def main():
     window.close()
 
 df = None
+
+
+sg.theme_add_new('retro', conf.THEME_DICT)
+sg.theme('retro')
 os.makedirs(f'{os.getcwd()}/.tmp', exist_ok=True)
 window = createMainWindow()
 

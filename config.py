@@ -24,8 +24,18 @@ PHYSICAL_FORMAT_MAP={
 }
 CHINESE_BOOK_SEARCH_URL = "https://search.douban.com/book/subject_search?search_text="
 ENGLISH_BOOK_SEARCH_URL = "https://www.amazon.com/s?k="
-BUTTON_APPEARANCE = {True:"black on grey", False:"white on dark blue"}
+BUTTON_APPEARANCE = {True:('black', 'grey'), False:('white', '#a2b5bb')}
 INITIAL_METADICT = {'input_path': '', 'save_path':'', 'start': -1, 'end': 0, 'process': False, 'append':False, 'incomplete':True}
+THEME_DICT = {'BACKGROUND': '#e3ded0',
+                'TEXT': '#2f3640',
+                'INPUT': '#dcdde1',
+                'TEXT_INPUT': '#2f3640',
+                'SCROLL': '#cfd2cf',
+                'BUTTON': ('white', '#b2bec3'),
+                'PROGRESS': ('#4cd137', '#cfd2cf'),
+                'BORDER': 1,
+                'SLIDER_DEPTH': 0,
+                'PROGRESS_DEPTH': 0}
 class GUILogger():
     buffer = ''
 
