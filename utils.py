@@ -89,11 +89,9 @@ def debug():
     listb = ['zmk', 'zzz', 'kas']
     print(isWrongInfo(lista, listb))
 
-def updateBuffer(message, clear=False):
-    if clear:
-        GUILogger.buffer = f'{message}\n'
-    else:
-        GUILogger.buffer += f'{message}\n'
+def updateBuffer(message, append=True):
+    GUILogger.append = append
+    GUILogger.buffer = f'{message}\n'
 
 if __name__ == '__main__':
     debug()
