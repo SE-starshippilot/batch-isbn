@@ -179,21 +179,19 @@ def main():
                 window['-Log-'].update(value=f'Saving result to {window.metadata["save_path"]}.\n', append=True)
                 setElementDisable(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Append-') # user can reset
         if event == '-Toggle-':
-            if init:
-                # init_process()
-                setElementDisable(True, '-Append-') # why did I add this statement? To stop the user from changing once process started
-                window.metadata['append'] = value['-Append-'] # unnecessary?
-                if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != window.metadata['append']:
-                    foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
-                    if window.metadata['append']:
-                        df = pd.concat([df, pd.DataFrame(columns=foundAttrName)])
-                    else:
-                        df = df.drop(foundAttrName, axis=1)
-                if process_thread.is_alive() == False:
-                    process_thread.start()
-            process_thread.toggle()
-            setElementDisable(process_thread.get_status(), '-Reset-', '-Preview-', '-Save-')
-            window['-Toggle-'].update(text = 'Pause' if process_thread.get_status() else 'Start')
+            setElementDisable(True, '-Append-')
+            window.metadata['append'] = value['-Append-'] # unnecessary?
+            if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != window.metadata['append']:
+                foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
+                if window.metadata['append']:
+                    df = pd.concat([df, pd.DataFrame(columns=foundAttrName)])
+                else:
+                    df = df.drop(foundAttrName, axis=1)
+            window.metadata['process'] = not(window.metadata['process'])
+            setElementDisable(window.metadata['process'], '-Reset-', '-Preview-', '-Save-')
+            window['-Toggle-'].update(text = 'Pause' if window.metadata['process'] else 'Start')
+            # if window.metadata['process']: # may change to multithreading
+            window.perform_long_operation(process, end_key='-Done-')
         if event == '-Reset-':
             init = True
             setElementDisable(False, '-Toggle-', '-Append-') # make the 'Start' button clickable
