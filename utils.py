@@ -1,5 +1,7 @@
 import re
 import base64
+import threading
+import PySimpleGUI as sg
 import numpy as np
 from fuzzywuzzy import fuzz
 
@@ -9,6 +11,51 @@ from config import GUILogger
 truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
 getb64encode = lambda s: base64.b64encode(s.encode("ascii"))
 convert = lambda attr: conf.EXCEL_FIELD_MAP[attr]
+
+class PThread(threading.Thread):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, daemon=None, binding_window=None):
+        super().__init__(group=group, target=target, name=name)
+        self.__args =  args 
+        self.__kwargs =  kwargs
+        self.__proc_func = target
+        self.__binding_window = binding_window
+        self.__running = threading.Event()
+        self.__done = threading.Event()
+        self.__running.clear()
+        self.__done.clear()
+        self.__quit = False
+
+    def run(self):
+        while True:
+            self.__running.wait()
+            try:
+                if self.__quit == False and self.__proc_func(*self.__args, **self.__kwargs):
+                    self.__done.set()
+                    self.__quit = True # normal exit
+            except:
+                print('Something nasty happened')
+                self.__quit = True # during the process something fkd up
+            finally:
+                if self.__quit:            
+                    del self.__proc_func, self._args, self._kwargs # should I keep it?
+                    self.__binding_window.write_event_value('-Done-', True) # False means unexpected quitting
+                    break
+    
+    def toggle(self):
+        if self.__running.is_set():
+            self.__running.clear()
+        else:
+            self.__running.set()
+    
+    def force_quit(self):
+        print('forced quitting')
+        self.__quit = True # the window is closed (forced quit)
+        self.__running.set() # unblock the thread even if it's paused to break the loop
+
+    
+    def get_status(self)->bool:
+        return self.__done.is_set()
+
 
 def strMatch(found: str, correct: str) -> float:
     """
@@ -89,11 +136,9 @@ def debug():
     listb = ['zmk', 'zzz', 'kas']
     print(isWrongInfo(lista, listb))
 
-def updateBuffer(message, clear=False):
-    if clear:
-        GUILogger.buffer = f'{message}\n'
-    else:
-        GUILogger.buffer += f'{message}\n'
+def updateBuffer(message, append=True):
+    GUILogger.append = append
+    GUILogger.buffer = f'{message}\n'
 
 if __name__ == '__main__':
     debug()

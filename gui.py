@@ -8,32 +8,26 @@ from file_io import *
 from utils import *
 import config as conf
         
-
 def createMainWindow():
     checkbox_list = [
             sg.Checkbox(
-                text='add retrived info', key='-Add-', disabled=True
+                text='add retrived info', key='-Append-', disabled=True
             )
         ]
     progress_list = [
         [
             sg.Multiline(
-                size=(40, 50), enter_submits=False, autoscroll=True, key='-Log-'
-            )
-        ],
-        [
-            sg.ProgressBar(
-                size=(20, 10), max_value=100, orientation='h', bar_color=('green', 'white'), key='-Prog-'
+                size=(40, 25), enter_submits=False, autoscroll=True, auto_refresh=True, key='-Log-'
             )
         ]
     ]
     file_list = [
         [   
-            sg.Text("Select an excel doccument"),
+            sg.Text("Select an file"),
             sg.In(
-                size=(50, 1), enable_events=True, key='-File-', readonly=True
+                size=(30, 1), enable_events=True, key='-File-', readonly=True
             ),
-            sg.FileBrowse(file_types=[("Excel Files", ".xls .xlsx"),], key='-Path-', button_color=('white', '#a2b5bb'))
+            sg.FileBrowse(file_types=[("Excel Files", ".xls .xlsx"),], key='-Path-', button_color=('white', '#74b9ff'))
         ],
         [
             sg.Button(
@@ -42,13 +36,16 @@ def createMainWindow():
             sg.Button(
                 button_text='reset progress', tooltip='reset the checkpoint of this file', disabled=True, enable_events=True, key='-Reset-', button_color=('black', 'grey')
             ),
-            sg.In(key='Save As', enable_events=True, visible=False),
+            sg.In(key='-Save_As-', enable_events=True, visible=False),
             sg.FileSaveAs(
                 button_text='save as...', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Save-', button_color=('black', 'grey'), file_types=(('Excel Files', '.xls .xlsx .csv'),), default_extension='xlsx'
             )
         ],
         checkbox_list,
         [
+            sg.ProgressBar(
+                size=(25, 30), max_value=100, orientation='h', key='-Prog-'
+            ),
             sg.Button(
                 button_text='Start', tooltip='begin/halt the process', disabled=True, enable_events=True, key='-Toggle-', button_color=('black', 'grey')
             )
@@ -61,7 +58,7 @@ def createMainWindow():
             sg.Column(progress_list)
         ]
     ]
-    return sg.Window(title='Batch ISBN Retriver v0.3', layout=layout, size=(800, 800), modal=False, metadata=conf.INITIAL_METADICT)
+    return sg.Window(title='Batch ISBN Retriver v0.3', layout=layout, modal=False, metadata=conf.INITIAL_METADICT)
 
 def modalize(window_func):
     """
@@ -101,68 +98,52 @@ def choice():
     choice_window.close()
     return quit_program
 
-def process(df:pd.DataFrame):
-    import traceback
-    global window
-
-    if window.metadata['process'] and window.metadata['incomplete']:
-        curr_index = window.metadata['start'] + 1
-        window['-Prog-'].update(current_count=curr_index)
-        try:
-            # for idx in range(window.metadata['start'], window.metadata['end']):
-            #     currentRow = df.loc[idx, :]
-            updateBuffer(curr_index)
-            time.sleep(0.01)
-        except Exception:
-            updateBuffer("Some error occured, saving checkpoint and quitting")
-            traceback.print_exc()
-        else:
-            window.metadata['start'] = curr_index
-            window.metadata['incomplete'] = window.metadata['start'] < window.metadata['end']
-        window['-Log-'].update(value=conf.GUILogger.buffer)
-    if not(window.metadata['incomplete']) and window.metadata['process']:
-        df.to_excel(window.metadata['save_path'], index=False)
-        updateBuffer('Removing checkpoint')
-        setElementDisable(True, '-Toggle-')
-        setElementDisable(False, '-Reset-', '-Preview-', '-Save-')
-        window.metadata['process'] = False
-        #         updateBuffer(f'Handling Book: {df.loc[idx, "Title"]}')
+def process():
+    global window, df
+    curr_index = window.metadata['start'] + 1
+    window['-Prog-'].update(current_count=curr_index)
+    # for idx in range(window.metadata['start'], window.metadata['end']):
+    #     currentRow = df.loc[idx, :]
+    window['-Log-'].update(value=f'{curr_index}\n', append=True)
+    time.sleep(0.01)
+    window.metadata['start'] = curr_index
+    return window.metadata['start'] > window.metadata['end']
+        #         window['-Log-'].update(value=f'Handling Book: {df.loc[idx, "Title"]}\n', append=True)
         #         if isinstance(currentRow['ISBN'], str): # the ISBN field is not empty
         #             df.loc[idx, 'Notes'] = 'ISBN already available'
-        #             updateBuffer('ISBN already written. Skipping.')
+        #             window['-Log-'].update(value='ISBN already written. Skipping.\n', append=True)
         #         else:
         #             if currentRow.isna().sum() > 2: # If fields other than ISBN and Notes are empty
         #                 df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
-        #                 updateBuffer('\tDetected Missing Fields. Generating URL for manual retrival.')
+        #                 window['-Log-'].update(value='\tDetected Missing Fields. Generating URL for manual retrival.\n', append=True)
         #                 continue
         #             else:
         #                 try:
         #                     bookInfo = getBookInfo(currentRow)
         #                 except AutomateError:
         #                     df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
-        #                     updateBuffer('No matching information found. Generating URL for manual retrival.')
+        #                     window['-Log-'].update(value='No matching information found. Generating URL for manual retrival.\n', append=True)
         #                     continue
         #                 else:
-        #                     updateBuffer(f"Found ISBN: {bookInfo['ISBN']}")
+        #                     window['-Log-'].update(value=f"Found ISBN: {bookInfo['ISBN']}\n", append=True)
         #                     df.loc[idx, 'ISBN'] = bookInfo['ISBN']
-        #         if window.metadata['-Add-']:
-        #             updateBuffer(f"Writing found information into file...")
+        #         if window.metadata['-Append-']:
+        #             window['-Log-'].update(value=f"Writing found information into file...\n", append=True)
         #             for attr in conf.EXCEL_FIELDS:
         #                 attrValue = bookInfo.get(attr, '')
         #                 if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
         #                 df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
-        #             updateBuffer(f"Done.")
+        #             window['-Log-'].update(value=f"Done.\n", append=True)
         
 def quitting(df:pd.DataFrame):
     global window
-    writeCheckpoint(window.metadata)
-    if window.metadata['incomplete']:
-        if df:
-            df.to_excel(window.metadata['save_path'], index=False)
-            sg.popup(f'Saving checkpoint at {window.metadata["start"]}',title='Close')
-    else:
+    if process_thread.get_status():
         ckpt_file_path = getCkptPath(window.metadata["input_path"])
         os.remove(ckpt_file_path)
+    elif df is not None:
+            df.to_excel(window.metadata['save_path'], index=False)
+            sg.popup(f'Saving checkpoint at {window.metadata["start"]}',title='Close', keep_on_top=True)
+            writeCheckpoint(window.metadata)
 
 
 def setElementDisable(disable:bool, *args):
@@ -174,64 +155,77 @@ def setElementDisable(disable:bool, *args):
         else:
             element.update(disabled=disable)
 
+def init_process():
+    pass
+
 def main():
     global window, df
+    init = True
     while True:
-        event, value = window.read(timeout=10)
+        event, value = window.read()
+        print(event)
         if event == 'Goodbye' or event == sg.WINDOW_CLOSED:
+            process_thread.force_quit()
             quitting(df)
             break
         if event == '-File-':
-            window.metadata['input_path'] = value['-File-']
-            try:
-                df = pd.read_excel(value['-File-'], sheet_name=conf.SHEET_INDEX)
-                readCheckpoint(window.metadata) # what should be updated: th
+            if os.path.exists(value['-File-']):
+                window.metadata['input_path'] = value['-File-']
+                df = pd.read_excel(value['-File-'], sheet_name=conf.SHEET_INDEX) # Need to add try statement
+                readCheckpoint(window.metadata) # what should be updated?
                 window.metadata['end'] = len(df.index)
-                window['-Prog-'].update(current_count=window.metadata['start'], max=window.metadata['end'])
-                setElementDisable(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Add-')
-                updateBuffer(f'Saving result to {window.metadata["save_path"]}.')
-            except Exception as e:
-                pass
+                window['-Append-'].update(value=window.metadata['append']) # make sure information is always added/not added
+                window['-Prog-'].update(current_count=window.metadata['start'], max=window.metadata['end']) # restore progress
+                window['-Log-'].update(value=f'Saving result to {window.metadata["save_path"]}.\n', append=True)
+                setElementDisable(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Append-') # user can reset
         if event == '-Toggle-':
-            setElementDisable(True, '-Add-')
-            window.metadata['append'] = value['-Add-'] # unnecessary?
-            if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != window.metadata['append']:
-                foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
-                if window.metadata['append']:
-                    df = pd.concat([df, pd.DataFrame(columns=foundAttrName)])
-                else:
-                    df = df.drop(foundAttrName, axis=1)
-            window.metadata['process'] = not(window.metadata['process'])
-            setElementDisable(window.metadata['process'], '-Reset-', '-Preview-', '-Save-')
-            window['-Toggle-'].update(text = 'Pause' if window.metadata['process'] else 'Start')
+            if init:
+                # init_process()
+                setElementDisable(True, '-Append-') # why did I add this statement? To stop the user from changing once process started
+                window.metadata['append'] = value['-Append-'] # unnecessary?
+                if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != window.metadata['append']:
+                    foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
+                    if window.metadata['append']:
+                        df = pd.concat([df, pd.DataFrame(columns=foundAttrName)])
+                    else:
+                        df = df.drop(foundAttrName, axis=1)
+                if process_thread.is_alive() == False:
+                    process_thread.start()
+            process_thread.toggle()
+            setElementDisable(process_thread.get_status(), '-Reset-', '-Preview-', '-Save-')
+            window['-Toggle-'].update(text = 'Pause' if process_thread.get_status() else 'Start')
         if event == '-Reset-':
-            setElementDisable(False, '-Toggle-')
-            window['-Toggle-'].update(text='start')
-            updateBuffer('Resetted progress', clear=True)
+            init = True
+            setElementDisable(False, '-Toggle-', '-Append-') # make the 'Start' button clickable
+            window['-Toggle-'].update(text='Start')
+            window['-Log-'].update(value='Resetted progress\n', append=False)
             window.metadata['start'] = 0
             window['-Prog-'].update(current_count=0)
-            window['-Add-'].update(disabled=False)
-            window.metadata['incomplete'] = True
-            if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}') in df.columns:
-                keep_cols = [_ for _ in df.columns if not(_.endswith(conf.FOUND_ATTRIBUTE_POSTFIX))]
-                df = pd.DataFrame(df[keep_cols], columns=df.columns)
+            window.metadata['incomplete'] = True # may change after changing to multithreading
+            # if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}') in df.columns: # TODO: check this (do we even need this?)
+            #     keep_cols = [_ for _ in df.columns if not(_.endswith(conf.FOUND_ATTRIBUTE_POSTFIX))]
+            #     df = pd.DataFrame(df[keep_cols], columns=df.columns)
             # writeCheckpoint(window.metadata)
         if event == '-Preview-':
             preview(df)
-        if event == 'Save As':
+        if event == '-Save_As-':
             window.metadata['save_path'] = value['-Save-']
-            updateBuffer(f'Now saving to {window.metadata["save_path"]}')
-        process(df)
-        window['-Log-'].update(value=conf.GUILogger.buffer)
+            window['-Log-'].update(value=f'Now saving to {window.metadata["save_path"]}\n', append=True)
+        if event == '-Done-':
+            window['-Log-'].update(value='Done\n', append=True)
+            sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True)
+            setElementDisable(True, '-Toggle-')
+            setElementDisable(False, '-Reset-', '-Preview-', '-Save-')
     window.close()
 
 df = None
 
-
-sg.theme_add_new('retro', conf.THEME_DICT)
+sg.theme_add_new('retro', conf.THEME_DICT) 
 sg.theme('retro')
 os.makedirs(f'{os.getcwd()}/.tmp', exist_ok=True)
 window = createMainWindow()
+process_thread = PThread(target=process, binding_window=window)
+process_thread.start()
 
 if __name__ == '__main__':
     main()
