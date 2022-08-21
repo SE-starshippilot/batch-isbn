@@ -53,8 +53,11 @@ class PThread(threading.Thread):
         self.__running.set() # unblock the thread even if it's paused to break the loop
 
     
-    def get_status(self)->bool:
+    def get_done_status(self)->bool:
         return self.__done.is_set()
+
+    def get_run_status(self)->bool:
+        return self.__running.is_set()
 
 
 def strMatch(found: str, correct: str) -> float:

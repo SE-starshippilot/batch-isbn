@@ -66,9 +66,9 @@ def modalize(window_func):
     """
     @wraps(window_func)
     def wrap_window(*args, **kwargs):
-            setElementDisable(True, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
+            setElementDisable(window, True, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
             window_func(*args, **kwargs)
-            setElementDisable(False, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
+            setElementDisable(window, False, '-Preview-', '-Toggle-', '-Reset-', '-Save-', '-Path-')
     return wrap_window
 
 @modalize
@@ -137,7 +137,7 @@ def process():
         
 def quitting(df:pd.DataFrame):
     global window
-    if process_thread.get_status():
+    if process_thread.get_done_status():
         ckpt_file_path = getCkptPath(window.metadata["input_path"])
         os.remove(ckpt_file_path)
     elif df is not None:
@@ -146,8 +146,7 @@ def quitting(df:pd.DataFrame):
             writeCheckpoint(window.metadata)
 
 
-def setElementDisable(disable:bool, *args):
-    global window
+def setElementDisable(window, disable:bool, *args):
     for arg in args:
         element = window[arg]
         if isinstance(element, sg.PySimpleGUI.Button):
@@ -177,11 +176,11 @@ def main():
                 window['-Append-'].update(value=window.metadata['append']) # make sure information is always added/not added
                 window['-Prog-'].update(current_count=window.metadata['start'], max=window.metadata['end']) # restore progress
                 window['-Log-'].update(value=f'Saving result to {window.metadata["save_path"]}.\n', append=True)
-                setElementDisable(False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Append-') # user can reset
+                setElementDisable(window, False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Append-') # user can reset
         if event == '-Toggle-':
             if init:
                 # init_process()
-                setElementDisable(True, '-Append-') # why did I add this statement? To stop the user from changing once process started
+                setElementDisable(window, True, '-Append-') # why did I add this statement? To stop the user from changing once process started
                 window.metadata['append'] = value['-Append-'] # unnecessary?
                 if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != window.metadata['append']:
                     foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
@@ -190,13 +189,13 @@ def main():
                     else:
                         df = df.drop(foundAttrName, axis=1)
                 if process_thread.is_alive() == False:
-                    process_thread.start()
+                    process_thread.run()
             process_thread.toggle()
-            setElementDisable(process_thread.get_status(), '-Reset-', '-Preview-', '-Save-')
-            window['-Toggle-'].update(text = 'Pause' if process_thread.get_status() else 'Start')
+            setElementDisable(window, process_thread.get_run_status(), '-Reset-', '-Preview-', '-Save-')
+            window['-Toggle-'].update(text = 'Pause' if process_thread.get_run_status() else 'Start')
         if event == '-Reset-':
             init = True
-            setElementDisable(False, '-Toggle-', '-Append-') # make the 'Start' button clickable
+            setElementDisable(window, False, '-Toggle-', '-Append-') # make the 'Start' button clickable
             window['-Toggle-'].update(text='Start')
             window['-Log-'].update(value='Resetted progress\n', append=False)
             window.metadata['start'] = 0
@@ -214,8 +213,8 @@ def main():
         if event == '-Done-':
             window['-Log-'].update(value='Done\n', append=True)
             sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True)
-            setElementDisable(True, '-Toggle-')
-            setElementDisable(False, '-Reset-', '-Preview-', '-Save-')
+            setElementDisable(window, True, '-Toggle-')
+            setElementDisable(window, False, '-Reset-', '-Preview-', '-Save-')
     window.close()
 
 df = None
