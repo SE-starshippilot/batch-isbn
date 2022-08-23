@@ -158,7 +158,7 @@ def init_process():
     pass
 
 def main():
-    global window, df
+    global window, df, process_thread
     init = True
     while True:
         event, value = window.read()
@@ -201,6 +201,11 @@ def main():
             window.metadata['start'] = 0
             window['-Prog-'].update(current_count=0)
             window.metadata['incomplete'] = True # may change after changing to multithreading
+            if process_thread is None:
+                process_thread = PThread(target=process, binding_window=window)
+                process_thread.start()
+
+            # process_thread.reset()
             # if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}') in df.columns: # TODO: check this (do we even need this?)
             #     keep_cols = [_ for _ in df.columns if not(_.endswith(conf.FOUND_ATTRIBUTE_POSTFIX))]
             #     df = pd.DataFrame(df[keep_cols], columns=df.columns)
@@ -215,6 +220,7 @@ def main():
             sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True)
             setElementDisable(window, True, '-Toggle-')
             setElementDisable(window, False, '-Reset-', '-Preview-', '-Save-')
+            process_thread = None
     window.close()
 
 df = None

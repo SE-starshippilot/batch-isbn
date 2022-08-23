@@ -37,7 +37,6 @@ class PThread(threading.Thread):
                 self.__quit = True # during the process something fkd up
             finally:
                 if self.__quit:            
-                    del self.__proc_func, self._args, self._kwargs # should I keep it?
                     self.__binding_window.write_event_value('-Done-', True) # False means unexpected quitting
                     break
     
@@ -51,7 +50,12 @@ class PThread(threading.Thread):
         print('forced quitting')
         self.__quit = True # the window is closed (forced quit)
         self.__running.set() # unblock the thread even if it's paused to break the loop
+        del self.__proc_func, self._args, self._kwargs # should I keep it?
 
+    def reset(self):
+        self.__running.clear()
+        self.__done.clear()
+        self.__quit = False # TODO: is this necessary
     
     def get_done_status(self)->bool:
         return self.__done.is_set()
