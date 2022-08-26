@@ -1,4 +1,5 @@
 import re
+import traceback
 import base64
 import threading
 import PySimpleGUI as sg
@@ -11,6 +12,10 @@ from config import GUILogger
 truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
 getb64encode = lambda s: base64.b64encode(s.encode("ascii"))
 convert = lambda attr: conf.EXCEL_FIELD_MAP[attr]
+
+class AutomateError(Exception):
+    def __init__(self, message: str, *args: object) -> None:
+        logging.error(message)
 
 class PThread(threading.Thread):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, daemon=None, binding_window=None):
@@ -144,8 +149,10 @@ def debug():
     print(isWrongInfo(lista, listb))
 
 def updateBuffer(message, append=True):
-    GUILogger.append = append
-    GUILogger.buffer = f'{message}\n'
+    assert isinstance(conf.window, sg.Window), 'Window not initialized!'
+    stack_length = len(traceback.format_stack())
+    print(stack_length)
+    # conf.window['-Append-'].update(value=message, append=append)
 
 if __name__ == '__main__':
     debug()

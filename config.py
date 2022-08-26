@@ -36,7 +36,9 @@ THEME_DICT = {'BACKGROUND': '#fbfafa',
                 'BORDER': 1,
                 'SLIDER_DEPTH': 0,
                 'PROGRESS_DEPTH': 0}
+G_MESSAGE = ''
 class GUILogger():
     buffer = ''
     append = True
+window = None
 
