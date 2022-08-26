@@ -15,7 +15,7 @@ convert = lambda attr: conf.EXCEL_FIELD_MAP[attr]
 
 class AutomateError(Exception):
     def __init__(self, message: str, *args: object) -> None:
-        logging.error(message)
+        conf.window['-Log-'].update(value=message, append=True)
 
 class PThread(threading.Thread):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, daemon=None, binding_window=None):
