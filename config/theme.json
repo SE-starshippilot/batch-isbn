@@ -1,0 +1,12 @@
+{
+    "BACKGROUND": "#fbfafa",
+    "TEXT": "#3b3a3b",
+    "INPUT": "#dcdde1",
+    "TEXT_INPUT": "#2f3640",
+    "SCROLL": "#cfd2cf",
+    "BUTTON": ["white", "#a4b0be"],
+    "PROGRESS": ["#4cd137", "#dcdde1"],
+    "BORDER": 1,
+    "SLIDER_DEPTH": 0,
+    "PROGRESS_DEPTH": 0
+}

@@ -1,5 +1,5 @@
 .vscode
-*.json
+sample*.json
 *.log
 __pycache__
 .tmp
