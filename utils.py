@@ -7,7 +7,6 @@ import numpy as np
 from fuzzywuzzy import fuzz
 
 import config as conf
-from config import GUILogger
 
 truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
 getb64encode = lambda s: base64.b64encode(s.encode("ascii"))
@@ -52,7 +51,6 @@ class PThread(threading.Thread):
             self.__running.set()
     
     def force_quit(self):
-        print('forced quitting')
         self.__quit = True # the window is closed (forced quit)
         self.__running.set() # unblock the thread even if it's paused to break the loop
         del self.__proc_func, self._args, self._kwargs # should I keep it?

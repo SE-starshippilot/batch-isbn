@@ -1,4 +1,6 @@
 import time
+import yaml
+import argparse
 import pandas as pd
 import PySimpleGUI as sg
 from functools import wraps
@@ -136,26 +138,27 @@ def process():
         #         df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
         #         updateBuffer(f'Done.\n')
         
-def quitting(df:pd.DataFrame):
-    if process_thread.get_done_status():
-        ckpt_file_path = getCkptPath(conf.window.metadata["input_path"])
-        os.remove(ckpt_file_path)
-    elif df is not None:
-            df.to_excel(conf.window.metadata['save_path'], index=False)
+def quitting(df:pd.DataFrame): # checked
+    global process_thread
+    process_thread.force_quit()
+    if process_thread.get_done_status(): # when quitting, the process is already done
+        os.remove(getCkptPath(conf.window.metadata["input_path"]))
+    elif df is not None: # when quitting, not initialized yet
+            df.to_excel(conf.window.metadata['save_path'], index=False) #
             sg.popup(f'Saving checkpoint at {conf.window.metadata["start"]}',title='Close', keep_on_top=True)
             writeCheckpoint(conf.window.metadata)
 
 
-def setElementDisable(window, disable:bool, *args):
+def setElementDisable(window, disable:bool, *args): # checked
+    """
+    Batch enable/disable elements on a given window。
+    """
     for arg in args:
         element = window[arg]
         if isinstance(element, sg.PySimpleGUI.Button):
             element.update(disabled=disable, button_color=conf.BUTTON_APPEARANCE[disable])
         else:
             element.update(disabled=disable)
-
-def init_process():
-    pass
 
 def main():
     global df, process_thread
@@ -164,7 +167,6 @@ def main():
         event, value = conf.window.read()
         print(event)
         if event == 'Goodbye' or event == sg.WINDOW_CLOSED:
-            process_thread.force_quit()
             quitting(df)
             break
         if event == '-File-':
@@ -176,11 +178,10 @@ def main():
                 conf.window['-Append-'].update(value=conf.window.metadata['append']) # make sure information is always added/not added
                 conf.window['-Prog-'].update(current_count=conf.window.metadata['start'], max=conf.window.metadata['end']) # restore progress
                 conf.window['-Log-'].update(value=f'Saving result to {conf.window.metadata["save_path"]}.\n', append=True)
-                setElementDisable(conf.window, False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Append-') # user can reset
+                setElementDisable(conf.window, False, '-Reset-', '-Toggle-', '-Preview-', '-Save-') # user can reset
+                setElementDisable(conf.window, conf.window.metadata['start'] != 0, '-Append-') # if the window has started processing, user cannot change the 'Append' attribute
         if event == '-Toggle-':
             if init:
-                # init_process()
-                setElementDisable(conf.window, True, '-Append-') # why did I add this statement? To stop the user from changing once process started
                 conf.window.metadata['append'] = value['-Append-'] # unnecessary?
                 if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != conf.window.metadata['append']:
                     foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
@@ -190,6 +191,8 @@ def main():
                         df = df.drop(foundAttrName, axis=1)
                 if process_thread.is_alive() == False:
                     process_thread.run()
+                init = False
+            setElementDisable(conf.window, True, '-Append-') # why did I add this statement? To stop the user from changing once process started
             process_thread.toggle()
             setElementDisable(conf.window, process_thread.get_run_status(), '-Reset-', '-Preview-', '-Save-')
             conf.window['-Toggle-'].update(text = 'Pause' if process_thread.get_run_status() else 'Start')
@@ -200,7 +203,6 @@ def main():
             conf.window['-Log-'].update(value='Resetted progress\n', append=False)
             conf.window.metadata['start'] = 0
             conf.window['-Prog-'].update(current_count=0)
-            conf.window.metadata['incomplete'] = True # may change after changing to multithreading
             if process_thread is None:
                 process_thread = PThread(target=process, binding_window=conf.window)
                 process_thread.start()
@@ -224,10 +226,11 @@ def main():
             process_thread = None
     conf.window.close()
 
+# initialize the window
 df = None
-
-sg.theme_add_new('retro', conf.THEME_DICT) 
-sg.theme('retro')
+with open('./config/theme.json', 'r') as f:
+    sg.theme_add_new('retro', json.load(f)) 
+    sg.theme('retro')
 os.makedirs(f'{os.getcwd()}/.tmp', exist_ok=True)
 conf.window = createMainWindow()
 process_thread = PThread(target=process, binding_window=conf.window)
