@@ -10,7 +10,7 @@ QUERY_2_EXCEL = {
 }
 SHEET_INDEX = 0
 LOWBOUND = 0.4
-HIGHBOUND = 0.8
+HIGHBOUND = 0.7
 MAX_SCORE = 1.0
 BOOK_QUERY_URL = "https://openlibrary.org/search.json?q="
 EDITION_QUERY_URL = "https://openlibrary.org/books/"

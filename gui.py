@@ -1,6 +1,5 @@
 import time
-import yaml
-import argparse
+import json
 import pandas as pd
 import PySimpleGUI as sg
 from functools import wraps
@@ -86,57 +85,39 @@ def preview(df:pd.DataFrame):
             break
     preview_window.close()
 
-# ! DEPRECIATED
-# @modalize
-# def choice():
-#     quit_program = True
-#     choice_window = sg.Window('Finished processing.', [[sg.T('Do you want to process another file?')], [sg.Yes(s=10), sg.No(s=10)]], disable_close=True)
-#     while True:
-#         event, value = choice_window.read()
-#         if event == 'Yes' or event == sg.WIN_CLOSED:
-#             quit_program = False
-#             break
-#         if event == 'No':
-#             break
-#     choice_window.close()
-#     return quit_program
-
 def process():
     global df
     curr_index = conf.window.metadata['start'] + 1
-    # conf.window['-Prog-'].update(current_count=curr_index)
-    # print(f'Starting at {conf.window.metadata["start"]} ending at {conf.window.metadata["end"]}')
-    # for idx in range(conf.window.metadata['start'], conf.window.metadata['end']):
-    #     currentRow = df.loc[idx, :]
-    conf.window['-Log-'].update(value=f'{curr_index}\n', append=True)
-    time.sleep(0.01)
+    conf.window['-Prog-'].update(current_count=curr_index)
+    print(f'Starting at {conf.window.metadata["start"]} ending at {conf.window.metadata["end"]}')
+    currentRow = df.loc[curr_index, :]
+# conf.window['-Log-'].update(value=f'{curr_index}\n', append=True)
+# time.sleep(0.01)
+# conf.window.metadata['start'] = curr_index
+    conf.window['-Log-'].update(value=f'Handling Book: {df.loc[curr_index, "Title"]}\n', append=True)
+    if currentRow['ISBN'] == currentRow['ISBN']: # the ISBN field is not empty
+        df.loc[curr_index, 'Notes'] = 'ISBN already available'
+        conf.window['-Log-'].update(value='ISBN already written. Skipping.\n', append=True)
+    else:  
+        if currentRow.isna().sum() > 2: # If fields other than ISBN and Notes are empty
+            df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
+            updateBuffer('\tDetected Missing Fields. Generating URL for manual retrival.\n')
+        else:
+            try:
+                bookInfo = getBookInfo(currentRow)
+            except AutomateError:
+                df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
+                updateBuffer('No matching information found. Generating URL for manual retrival.\n')
+            else:
+                updateBuffer(f"Found ISBN: {bookInfo['ISBN']}\n")
+                df.loc[curr_index, 'ISBN'] = bookInfo['ISBN']
+        if conf.window.metadata['append']:
+            for attr in conf.EXCEL_FIELDS:
+                attrValue = bookInfo.get(attr, '')
+                if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
+                df.loc[curr_index, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
     conf.window.metadata['start'] = curr_index
     return conf.window.metadata['start'] > conf.window.metadata['end']
-        # updateBuffer(f'Handling Book: {df.loc[idx, "Title"]}\n')
-        # if isinstance(currentRow['ISBN'], str): # the ISBN field is not empty
-        #     df.loc[idx, 'Notes'] = 'ISBN already available'
-        #     updateBuffer('ISBN already written. Skipping.\n')
-        # else:
-        #     if currentRow.isna().sum() > 2: # If fields other than ISBN and Notes are empty
-        #         df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
-        #         updateBuffer('\tDetected Missing Fields. Generating URL for manual retrival.\n')
-        #     else:
-        #         try:
-        #             bookInfo = getBookInfo(currentRow)
-        #         except AutomateError:
-        #             df.loc[idx, 'Notes'] = generateManualURL(currentRow['Title'])
-        #             updateBuffer('No matching information found. Generating URL for manual retrival.\n')
-        #             continue
-        #         else:
-        #             updateBuffer(f"Found ISBN: {bookInfo['ISBN']}\n")
-        #             df.loc[idx, 'ISBN'] = bookInfo['ISBN']
-        # if conf.window.metadata['-Append-']:
-        #     updateBuffer(f"Writing found information into file...\n")
-        #     for attr in conf.EXCEL_FIELDS:
-        #         attrValue = bookInfo.get(attr, '')
-        #         if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
-        #         df.loc[idx, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
-        #         updateBuffer(f'Done.\n')
         
 def quitting(df:pd.DataFrame): # checked
     global process_thread
@@ -186,8 +167,10 @@ def main():
                 if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != conf.window.metadata['append']:
                     foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
                     if conf.window.metadata['append']:
+                        updateBuffer(f"Writing found information into file...\n")
                         df = pd.concat([df, pd.DataFrame(columns=foundAttrName)])
                     else:
+                        updateBuffer(f"Cleaning found information into file...\n")
                         df = df.drop(foundAttrName, axis=1)
                 if process_thread.is_alive() == False:
                     process_thread.run()

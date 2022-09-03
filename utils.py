@@ -127,18 +127,18 @@ def generateManualURL(bookName:str)->str:
     return carrier + bookName
 
 def isWrongInfo(found:any, correct:any)->bool:
-    if isinstance(found, str):
-        return fuzz.partial_ratio(found, correct)/100 < conf.HIGHBOUND
-    elif isinstance(found, list):
-        if isinstance(correct, str):
-            correct = correct.split(',')
-            correct = [x.strip() for x in correct]
-        for foundStr in found:
-            isContained = lambda x: fuzz.partial_ratio(foundStr, x)/100
-            containedList = np.array(list(map(isContained, correct)))
-            if any(containedList>conf.HIGHBOUND):
-                return False
-        return True
+    def splitAttr(attr:any)->list:
+        if isinstance(attr, str):
+            attr = attr.split(',')
+        attr = [_.strip() for _ in attr]
+        return attr
+    found, correct = splitAttr(found), splitAttr(correct)
+    for foundStr in found:
+        isContained = lambda x: fuzz.partial_ratio(foundStr, x)/100
+        containedList = np.array(list(map(isContained, correct)))
+        if any(containedList>conf.HIGHBOUND):
+            return False
+    return True
 
 def debug():
     global conf
@@ -150,7 +150,7 @@ def updateBuffer(message, append=True):
     assert isinstance(conf.window, sg.Window), 'Window not initialized!'
     stack_length = len(traceback.format_stack())
     print(stack_length)
-    # conf.window['-Append-'].update(value=message, append=append)
+    conf.window['-Log-'].update(value=f'{message}\n', append=append)
 
 if __name__ == '__main__':
     debug()
