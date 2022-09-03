@@ -6,10 +6,9 @@ import requests
 import logging
 import pandas as pd
 from urllib import parse
-from logging import config
 
 from utils import *
-
+import config
 
 def accessPage(pageURL)->json:
     """
@@ -18,20 +17,20 @@ def accessPage(pageURL)->json:
     """
     trials = 0
     while True:
-        logging.debug(f'Accessing {pageURL}')
+        updateBuffer(f'Accessing {pageURL}')
         reason = ''
         try:
             page = requests.get(pageURL)
             reason = page.reason
             assert page.ok
         except Exception:
-            logging.warning(f'Error when accessing {pageURL}: {reason}')
+            updateBuffer('Error when accessing {pageURL}: {reason}')
             if trials < conf.MAXIMUM_TRIALS:
                 trials += 1
-                logging.warning(f'Retrying for {trials} time.')
+                updateBuffer(f'Retrying for {trials} time.')
                 time.sleep(1)
             else:
-                logging.error(f'Maximum trials exceeded. Aborting...')
+                updateBuffer(f'Maximum trials exceeded. Aborting...')
                 return ''
         else:
             return json.loads(page.text)
@@ -45,14 +44,14 @@ def getBookInfo(currentRow:pd.Series)->list:
         accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL + editionID + '.json?')
         bestMatchEdition = (None, -1)
         for editionID in editionList:
-            logging.info(f'Handling {editionID}') # Need to change for logging
+            updateBuffer(f'Handling {editionID}') # Need to change for logging
             editionPage = accessEditionPage(editionID)
             editionInfo, editionSimilarity =  calcEditionSimilarity(editionPage, currentRow)
             if editionSimilarity > bestMatchEdition[1]:
                 bestMatchEdition = (editionInfo, editionSimilarity)
-            if bestMatchEdition[1] > 110: # If publisher & edition is the same, quit searching.
+            if bestMatchEdition[1] >= 110: # If publisher & edition is the same, quit searching.
                 break
-        logging.info(f'Registering {bestMatchEdition[0]} as best match edition.')
+        updateBuffer('Registering {bestMatchEdition[0]} as best match edition.')
         return bestMatchEdition[0]
     bookURL = conf.BOOK_QUERY_URL + parse.quote_plus(currentRow['Title'])
     bookPage = accessPage(bookURL)
@@ -64,7 +63,7 @@ def getBookInfo(currentRow:pd.Series)->list:
             if retAttr is None or isWrongInfo(retAttr, currentRow[conf.QUERY_2_EXCEL[attr]]): 
                 raise AutomateError(f"the retrived book's {attr} doesn't match")
             bookInfo[attr] = retAttr
-        logging.info(f'Matching editions:')
+        updateBuffer(f'Matching editions:')
         editionInfo = getBestMatchEdition(firstWork.get('edition_key'))
         return {**bookInfo, **editionInfo}
     raise AutomateError('No book found')

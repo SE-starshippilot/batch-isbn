@@ -1,0 +1,6 @@
+.vscode
+sample*.json
+*.log
+__pycache__
+.tmp
+.DS_Store

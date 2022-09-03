@@ -1,20 +1,71 @@
 import re
-import json
-import logging
-import argparse
+import traceback
+import base64
+import threading
+import PySimpleGUI as sg
 import numpy as np
-import pandas as pd
+from fuzzywuzzy import fuzz
 
 import config as conf
-from fuzzywuzzy import fuzz
+
+truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
+getb64encode = lambda s: base64.b64encode(s.encode("ascii"))
+convert = lambda attr: conf.EXCEL_FIELD_MAP[attr]
 
 class AutomateError(Exception):
     def __init__(self, message: str, *args: object) -> None:
-        logging.error(message)
+        conf.window['-Log-'].update(value=message, append=True)
 
-truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
+class PThread(threading.Thread):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, daemon=None, binding_window=None):
+        super().__init__(group=group, target=target, name=name)
+        self.__args =  args 
+        self.__kwargs =  kwargs
+        self.__proc_func = target
+        self.__binding_window = binding_window
+        self.__running = threading.Event()
+        self.__done = threading.Event()
+        self.__running.clear()
+        self.__done.clear()
+        self.__quit = False
 
-convert = lambda attr: conf.EXCEL_FIELD_MAP[attr]
+    def run(self):
+        while True:
+            self.__running.wait()
+            try:
+                if self.__quit == False and self.__proc_func(*self.__args, **self.__kwargs):
+                    self.__done.set()
+                    self.__quit = True # normal exit
+            except:
+                print('Something nasty happened')
+                self.__quit = True # during the process something fkd up
+            finally:
+                if self.__quit:            
+                    self.__binding_window.write_event_value('-Done-', True) # False means unexpected quitting
+                    break
+    
+    def toggle(self):
+        if self.__running.is_set():
+            self.__running.clear()
+        else:
+            self.__running.set()
+    
+    def force_quit(self):
+        self.__quit = True # the window is closed (forced quit)
+        self.__running.set() # unblock the thread even if it's paused to break the loop
+        del self.__proc_func, self._args, self._kwargs # should I keep it?
+
+    def reset(self):
+        self.__running.clear()
+        self.__done.clear()
+        self.__quit = False # TODO: is this necessary
+    
+    def get_done_status(self)->bool:
+        return self.__done.is_set()
+
+    def get_run_status(self)->bool:
+        return self.__running.is_set()
+
 
 def strMatch(found: str, correct: str) -> float:
     """
@@ -76,55 +127,30 @@ def generateManualURL(bookName:str)->str:
     return carrier + bookName
 
 def isWrongInfo(found:any, correct:any)->bool:
-    if isinstance(found, str):
-        return fuzz.partial_ratio(found, correct)/100 < conf.HIGHBOUND
-    elif isinstance(found, list):
-        if isinstance(correct, str):
-            correct = correct.split(',')
-            correct = [x.strip() for x in correct]
-        for foundStr in found:
-            isContained = lambda x: fuzz.partial_ratio(foundStr, x)/100
-            containedList = np.array(list(map(isContained, correct)))
-            if any(containedList>conf.HIGHBOUND):
-                return False
-        return True
-
-def configparser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', type = str, help='Specify the input file. Specifying this argument will disable GUI.')
-    parser.add_argument('-o', '--out', type = str, help='Specify the output file. Not specifying this argument will overwrite existing file.')
-    parser.add_argument('-v', '--verbose', action = 'store_true', help = 'Show details when running. Default not shown.')
-    parser.add_argument('-a', '--addColumns', action='store_true', help='Append the found attributes to the file. Default not added.')
-    return parser.parse_args()
-
-def configlogger(verbose:bool):
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-
-    fh = logging.FileHandler('experiment.log')
-    fh.setLevel(logging.INFO)
-
-    ch = logging.StreamHandler()
-    if verbose:
-        ch.setLevel(logging.INFO) 
-    else:
-        ch.setLevel(logging.WARNING)
-
-    fmt = logging.Formatter('%(asctime)s [%(levelname)s]:%(message)s')
-
-    fh.setFormatter(fmt)
-    ch.setFormatter(fmt)
-
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-    return logger
+    def splitAttr(attr:any)->list:
+        if isinstance(attr, str):
+            attr = attr.split(',')
+        attr = [_.strip() for _ in attr]
+        return attr
+    found, correct = splitAttr(found), splitAttr(correct)
+    for foundStr in found:
+        isContained = lambda x: fuzz.partial_ratio(foundStr, x)/100
+        containedList = np.array(list(map(isContained, correct)))
+        if any(containedList>conf.HIGHBOUND):
+            return False
+    return True
 
 def debug():
     global conf
     lista = ['abc', 'def', 'ghi']
     listb = ['zmk', 'zzz', 'kas']
     print(isWrongInfo(lista, listb))
+
+def updateBuffer(message, append=True):
+    assert isinstance(conf.window, sg.Window), 'Window not initialized!'
+    stack_length = len(traceback.format_stack())
+    print(stack_length)
+    conf.window['-Log-'].update(value=f'{message}\n', append=append)
 
 if __name__ == '__main__':
     debug()

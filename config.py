@@ -1,6 +1,6 @@
 FOUND_ATTRIBUTE_POSTFIX = "_found"
 EDITION_ATTRIBUTES = ["publishers", "publish_date", "physical_format", "isbn_13", "isbn_10"]
-EXCEL_FIELDS = ["ISBN", "Title", "Author", "Publisher", "Edition Date"]
+EXCEL_FIELDS = ["Title", "Author", "Publisher", "Edition Date"]
 QUERY_FIELDS = ["title", "author_name"]
 QUERY_2_EXCEL = {
     "title": "Title",
@@ -8,9 +8,15 @@ QUERY_2_EXCEL = {
     "publishers": "Publisher",
     "publish_date": "Edition Date"
 }
+EXCEL_2_QUERY = {
+    "Title": "title",
+    "Author": "author_name",
+    "Publisher": "publishers",
+    "Edition Date": "publish_date"
+}
 SHEET_INDEX = 0
 LOWBOUND = 0.4
-HIGHBOUND = 0.8
+HIGHBOUND = 0.7
 MAX_SCORE = 1.0
 BOOK_QUERY_URL = "https://openlibrary.org/search.json?q="
 EDITION_QUERY_URL = "https://openlibrary.org/books/"
@@ -22,32 +28,17 @@ PHYSICAL_FORMAT_MAP={
     "mass market paperback": 0.8,
     "hardcover": 0.2
 }
-LOGGING_CONFIGURE = {
-    "version" : 1,
-    "root" : {
-        "handlers" : ["console", "file"],
-        "level" : "INFO"
-    },
-    "handlers" : {
-        "console" : {
-            "class" : "logging.StreamHandler",
-            "stream"  : "ext://sys.stdout",
-            "formatter" : "fmt",
-            "level" : "WARNING"
-        },
-        "file" : {
-            "class" : "logging.FileHandler",
-            "filename" : "access-file.log",
-            "formatter" : "fmt",
-            "mode" : "w"
-        }
-    },
-    "formatters" : {
-        "fmt" : {
-            "format" : "%(asctime)s [%(levelname)s]:%(message)s",
-            "datefmt" : "%m-%d %H:%M:%S"
-        }
-    }
-}
 CHINESE_BOOK_SEARCH_URL = "https://search.douban.com/book/subject_search?search_text="
 ENGLISH_BOOK_SEARCH_URL = "https://www.amazon.com/s?k="
+BUTTON_APPEARANCE = {True:('black', 'grey'), False:('white', '#74b9ff')}
+INITIAL_METADICT = {'input_path': '',
+                     'save_path':'', 
+                     'start': -1, 
+                     'end': 0, 
+                     'process': False}
+G_MESSAGE = ''
+class GUILogger():
+    buffer = ''
+    append = True
+window = None
+
