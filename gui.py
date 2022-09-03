@@ -121,8 +121,7 @@ def process():
         
 def quitting(df:pd.DataFrame): # checked
     global process_thread
-    process_thread.force_quit()
-    if process_thread.get_done_status(): # when quitting, the process is already done
+    if process_thread and process_thread.get_done_status(): # when quitting, the process is already done
         os.remove(getCkptPath(conf.window.metadata["input_path"]))
     elif df is not None: # when quitting, not initialized yet
             df.to_excel(conf.window.metadata['save_path'], index=False) #
