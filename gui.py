@@ -99,7 +99,7 @@ def process():
         df.loc[curr_index, 'Notes'] = 'ISBN already available'
         conf.window['-Log-'].update(value='ISBN already written. Skipping.\n', append=True)
     else:  
-        if (conf.window.metadata['append'] and currentRow.isna().sum() > 2 + len(conf.EXCEL_FIELDS)) or (not(conf.window.metadata['append']) and currentRow.isna().sum > 2): # If fields other than ISBN and Notes are empty
+        if (conf.window.metadata['append'] and currentRow.isna().sum() > 2 + len(conf.EXCEL_FIELDS)) or (not(conf.window.metadata['append']) and currentRow.isna().sum() > 2): # If fields other than ISBN and Notes are empty
             df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
             updateBuffer('\tDetected Missing Fields. Generating URL for manual retrival.\n')
         else:
@@ -118,11 +118,11 @@ def process():
                         if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
                         df.loc[curr_index, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
     conf.window.metadata['start'] = curr_index
-    return conf.window.metadata['start'] > conf.window.metadata['end']
+    return curr_index >= conf.window.metadata['end']
         
 def quitting(df:pd.DataFrame): # checked
     global process_thread
-    if process_thread and process_thread.get_done_status(): # when quitting, the process is already done
+    if process_thread or process_thread.get_done_status(): # when quitting, the process is already done
         os.remove(getCkptPath(conf.window.metadata["input_path"]))
     elif df is not None: # when quitting, not initialized yet
             df.to_excel(conf.window.metadata['save_path'], index=False) #
@@ -155,7 +155,7 @@ def main():
                 conf.window.metadata['input_path'] = value['-File-']
                 df = pd.read_excel(value['-File-'], sheet_name=conf.SHEET_INDEX) # Need to add try statement
                 readCheckpoint(conf.window.metadata) # what should be updated?
-                conf.window.metadata['end'] = len(df.index)
+                conf.window.metadata['end'] = len(df.index) - 1
                 conf.window['-Prog-'].update(current_count=conf.window.metadata['start'], max=conf.window.metadata['end']) # restore progress
                 conf.window['-Log-'].update(value=f'Saving result to {conf.window.metadata["save_path"]}.\n', append=True)
                 setElementDisable(conf.window, False, '-Reset-', '-Toggle-', '-Preview-', '-Save-') # user can reset
@@ -211,7 +211,6 @@ def main():
             sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True)
             setElementDisable(conf.window, True, '-Toggle-')
             setElementDisable(conf.window, False, '-Reset-', '-Preview-', '-Save-')
-            process_thread = None
     conf.window.close()
 
 # initialize the window
