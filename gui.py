@@ -99,10 +99,11 @@ def process():
         df.loc[curr_index, 'Notes'] = 'ISBN already available'
         conf.window['-Log-'].update(value='ISBN already written. Skipping.\n', append=True)
     else:  
-        if currentRow.isna().sum() > 2: # If fields other than ISBN and Notes are empty
+        if (conf.window.metadata['append'] and currentRow.isna().sum() > 2 + len(conf.EXCEL_FIELDS)) or (not(conf.window.metadata['append']) and currentRow.isna().sum > 2): # If fields other than ISBN and Notes are empty
             df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
             updateBuffer('\tDetected Missing Fields. Generating URL for manual retrival.\n')
         else:
+            bookInfo = None
             try:
                 bookInfo = getBookInfo(currentRow)
             except AutomateError:
@@ -111,11 +112,11 @@ def process():
             else:
                 updateBuffer(f"Found ISBN: {bookInfo['ISBN']}\n")
                 df.loc[curr_index, 'ISBN'] = bookInfo['ISBN']
-        if conf.window.metadata['append']:
-            for attr in conf.EXCEL_FIELDS:
-                attrValue = bookInfo.get(attr, '')
-                if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
-                df.loc[curr_index, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
+                if conf.window.metadata['append']:
+                    for attr in conf.EXCEL_FIELDS:
+                        attrValue = bookInfo.get(conf.EXCEL_2_QUERY[attr], '')
+                        if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
+                        df.loc[curr_index, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
     conf.window.metadata['start'] = curr_index
     return conf.window.metadata['start'] > conf.window.metadata['end']
         
@@ -155,11 +156,14 @@ def main():
                 df = pd.read_excel(value['-File-'], sheet_name=conf.SHEET_INDEX) # Need to add try statement
                 readCheckpoint(conf.window.metadata) # what should be updated?
                 conf.window.metadata['end'] = len(df.index)
-                conf.window['-Append-'].update(value=conf.window.metadata['append']) # make sure information is always added/not added
                 conf.window['-Prog-'].update(current_count=conf.window.metadata['start'], max=conf.window.metadata['end']) # restore progress
                 conf.window['-Log-'].update(value=f'Saving result to {conf.window.metadata["save_path"]}.\n', append=True)
                 setElementDisable(conf.window, False, '-Reset-', '-Toggle-', '-Preview-', '-Save-') # user can reset
-                setElementDisable(conf.window, conf.window.metadata['start'] != 0, '-Append-') # if the window has started processing, user cannot change the 'Append' attribute
+                if conf.window.metadata.get('append', None):
+                    conf.window['-Append-'].update(value=conf.window.metadata['append']) # make sure information is always added/not added
+                    setElementDisable(conf.window, True, '-Append-') # if the window has started processing, user cannot change the 'Append' attribute
+                else:
+                    setElementDisable(conf.window, False, '-Append-') # if the window has started processing, user cannot change the 'Append' attribute
         if event == '-Toggle-':
             if init:
                 conf.window.metadata['append'] = value['-Append-'] # unnecessary?
@@ -188,6 +192,8 @@ def main():
             if process_thread is None:
                 process_thread = PThread(target=process, binding_window=conf.window)
                 process_thread.start()
+            else:
+                process_thread.reset()
 
             # process_thread.reset()
             # if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}') in df.columns: # TODO: check this (do we even need this?)

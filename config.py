@@ -1,12 +1,18 @@
 FOUND_ATTRIBUTE_POSTFIX = "_found"
 EDITION_ATTRIBUTES = ["publishers", "publish_date", "physical_format", "isbn_13", "isbn_10"]
-EXCEL_FIELDS = ["ISBN", "Title", "Author", "Publisher", "Edition Date"]
+EXCEL_FIELDS = ["Title", "Author", "Publisher", "Edition Date"]
 QUERY_FIELDS = ["title", "author_name"]
 QUERY_2_EXCEL = {
     "title": "Title",
     "author_name": "Author",
     "publishers": "Publisher",
     "publish_date": "Edition Date"
+}
+EXCEL_2_QUERY = {
+    "Title": "title",
+    "Author": "author_name",
+    "Publisher": "publishers",
+    "Edition Date": "publish_date"
 }
 SHEET_INDEX = 0
 LOWBOUND = 0.4
@@ -29,8 +35,7 @@ INITIAL_METADICT = {'input_path': '',
                      'save_path':'', 
                      'start': -1, 
                      'end': 0, 
-                     'process': False, 
-                     'append':False}
+                     'process': False}
 G_MESSAGE = ''
 class GUILogger():
     buffer = ''
