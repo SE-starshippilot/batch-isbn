@@ -16,9 +16,12 @@ class GUILogger():
         self.__level = level
     
     def __log(self, level, message, append):
-        if level >= self.__level:
-            self.__target['-Log-'].update(value=f'{message.rstrip()}\n', append=append, text_color_for_value=conf.LOG_COLOR[level])
-    
+        if level[0] >= self.__level[0]:
+            self.__target['-Log-'].update(value=f'[{level[1]}]: {message.rstrip()}\n', append=append, text_color_for_value=conf.LOG_COLOR[level])
+
+    def debug(self, message, append=True):
+        self.__log(conf.DEBUG, message, append)
+
     def info(self, message, append=True):
         self.__log(conf.INFO, message, append)
 

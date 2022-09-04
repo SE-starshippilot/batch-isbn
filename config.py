@@ -18,11 +18,13 @@ SHEET_INDEX = 0
 LOWBOUND = 0.4
 HIGHBOUND = 0.7
 MAX_SCORE = 1.0
-INFO = 10
-WARNING = 20
-ERROR = 30
+DEBUG = (0, 'DEBUG')
+INFO = (10,'INFO')
+WARNING = (20,'WARNING')
+ERROR = (30,'ERROR')
 LOG_LEVEL = WARNING
 LOG_COLOR = {
+    DEBUG: 'black',
     INFO: 'black',
     WARNING: 'orange',
     ERROR: 'red'

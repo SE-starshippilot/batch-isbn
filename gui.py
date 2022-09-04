@@ -93,11 +93,11 @@ def process():
     conf.logger.info('Handling Book: {df.loc[curr_index, "Title"]}')
     if currentRow['ISBN'] == currentRow['ISBN']: # the ISBN field is not empty
         df.loc[curr_index, 'Notes'] = 'ISBN already available'
-        conf.logger.info('ISBN already written. Skipping.')
+        conf.logger.debug('ISBN already written. Skipping.')
     else:  
         if (conf.window.metadata['append'] and currentRow.isna().sum() > 2 + len(conf.EXCEL_FIELDS)) or (not(conf.window.metadata['append']) and currentRow.isna().sum() > 2): # If fields other than ISBN and Notes are empty
             df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
-            conf.logger.info('Detected Missing Fields. Generating URL for manual retrival.')
+            conf.logger.warn('Detected Missing Fields. Generating URL for manual retrival.')
         else:
             bookInfo = None
             currentRowNotes = df.loc[curr_index, 'Notes']
@@ -106,7 +106,7 @@ def process():
                     bookInfo = getBookInfo(currentRow)
                 except AutomateError:
                     df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
-                    conf.logger.warn('No matching information found. Generating URL for manual retrival.')
+                    conf.logger.warn('Generating URL for manual retrival.')
                 except NetworkError:
                     df.loc[curr_index, 'Notes'] = 'Network Error, please check and retry'
                 else:
@@ -122,10 +122,10 @@ def process():
         
 def quitting(df:pd.DataFrame): # checked
     global process_thread
+    df.to_excel(conf.window.metadata['save_path'], index=False)
     if process_thread is None or process_thread.get_done_status(): # when quitting, the process is already done
         os.remove(getCkptPath(conf.window.metadata["input_path"]))
     elif df is not None or not(process_thread.get_done_status()): # when quitting, not initialized yet or not started yet
-            df.to_excel(conf.window.metadata['save_path'], index=False) #
             sg.popup(f'Saving checkpoint at {conf.window.metadata["start"]+1}',title='Close', keep_on_top=True)
             writeCheckpoint(conf.window.metadata)
             process_thread.force_quit()
@@ -215,7 +215,7 @@ with open('./config/theme.json', 'r') as f:
     sg.theme('retro')
 os.makedirs(f'{os.getcwd()}/.tmp', exist_ok=True)
 conf.window = createMainWindow()
-conf.logger = GUILogger(conf.window, level=conf.WARNING)
+conf.logger = GUILogger(conf.window, level=conf.INFO)
 process_thread = PThread(target=process, binding_window=conf.window)
 process_thread.start()
 

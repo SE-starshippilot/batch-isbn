@@ -17,17 +17,16 @@ def accessPage(pageURL)->json:
     """
     trials = 0
     while True:
-        conf.logger.info(f'Accessing {pageURL}')
+        conf.logger.debug(f'Accessing {pageURL}')
         reason = ''
         try:
             page = requests.get(pageURL)
             reason = page.reason
             assert page.ok
         except Exception:
-            conf.logger.warn('Error when accessing {pageURL}: {reason}')
             if trials < conf.MAXIMUM_TRIALS:
                 trials += 1
-                conf.logger.warn(f'Retrying for {trials} time.')
+                conf.logger.warn(f'Retrying to access {pageURL} for {trials} time.[{reason}]')
                 time.sleep(1)
             else:
                 conf.logger.warn(f'Maximum trials exceeded. Aborting...')
@@ -44,7 +43,7 @@ def getBookInfo(currentRow:pd.Series)->list:
         accessEditionPage = lambda editionID: accessPage(conf.EDITION_QUERY_URL + editionID + '.json?')
         bestMatchEdition = (None, -1)
         for editionID in editionList:
-            conf.logger.info(f'Handling {editionID}') # Need to change for logging
+            conf.logger.debug(f'Handling {editionID}') # Need to change for logging
             editionPage = accessEditionPage(editionID)
             editionInfo, editionSimilarity =  calcEditionSimilarity(editionPage, currentRow)
             if editionSimilarity > bestMatchEdition[1]:
@@ -61,12 +60,12 @@ def getBookInfo(currentRow:pd.Series)->list:
         for attr in conf.QUERY_FIELDS: # check if title and author matches
             retAttr = firstWork.get(attr)
             if retAttr is None or isWrongInfo(retAttr, currentRow[conf.QUERY_2_EXCEL[attr]]): 
-                raise AutomateError(f"the retrived book's {attr} doesn't match")
+                raise AutomateError(f"the retrived book's {attr} {retAttr} doesn't match with {currentRow[conf.QUERY_2_EXCEL[attr]]}")
             bookInfo[attr] = retAttr
         conf.logger.info(f'Matching editions:')
         editionInfo = getBestMatchEdition(firstWork.get('edition_key'))
         return {**bookInfo, **editionInfo}
-    raise AutomateError('No book found')
+    raise AutomateError(f'No book found for {currentRow["Title"]}')
 
 
 
