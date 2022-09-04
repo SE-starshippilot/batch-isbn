@@ -17,7 +17,7 @@ class GUILogger():
     
     def __log(self, level, message, append):
         if level[0] >= self.__level[0]:
-            self.__target['-Log-'].update(value=f'[{level[1]}]: {message.rstrip()}\n', append=append, text_color_for_value=conf.LOG_COLOR[level])
+            self.__target['-Log-'].update(value=f'[{level[1]}]: {message.rstrip()}\n', append=append, text_color_for_value=level[2])
 
     def debug(self, message, append=True):
         self.__log(conf.DEBUG, message, append)
@@ -36,7 +36,7 @@ class GUILogger():
 
     def __setattr__(self, __name, __value) -> None:
         if __name.endswith('level'):
-            assert __value in [conf.INFO, conf.WARNING, conf.ERROR], 'Invalid logging level.'
+            assert __value in conf.LOG_DICT.values(), 'Invalid logging level.'
         elif __name.endswith('target'):
             assert isinstance(__value, sg.Window), f'Window {__value} not initialized!'
         else:

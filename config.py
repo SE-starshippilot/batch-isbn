@@ -18,16 +18,16 @@ SHEET_INDEX = 0
 LOWBOUND = 0.4
 HIGHBOUND = 0.7
 MAX_SCORE = 1.0
-DEBUG = (0, 'DEBUG')
-INFO = (10,'INFO')
-WARNING = (20,'WARNING')
-ERROR = (30,'ERROR')
+DEBUG = (0, 'DEBUG', 'black')
+INFO = (10,'INFO', 'black')
+WARNING = (20,'WARNING', 'orange')
+ERROR = (30,'ERROR', 'red')
 LOG_LEVEL = WARNING
-LOG_COLOR = {
-    DEBUG: 'black',
-    INFO: 'black',
-    WARNING: 'orange',
-    ERROR: 'red'
+LOG_DICT = {
+    'DEBUG': DEBUG,
+    'INFO': INFO,
+    'WARNING': WARNING,
+    'ERROR': ERROR
 }
 BOOK_QUERY_URL = "https://openlibrary.org/search.json?q="
 EDITION_QUERY_URL = "https://openlibrary.org/books/"

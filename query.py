@@ -3,7 +3,7 @@ import config as conf
 import json
 import time
 import requests
-import logging
+import traceback
 import pandas as pd
 from urllib import parse
 
@@ -21,12 +21,11 @@ def accessPage(pageURL)->json:
         reason = ''
         try:
             page = requests.get(pageURL)
-            reason = page.reason
             assert page.ok
-        except Exception:
+        except Exception as e:
             if trials < conf.MAXIMUM_TRIALS:
                 trials += 1
-                conf.logger.warn(f'Retrying to access {pageURL} for {trials} time.[{reason}]')
+                conf.logger.warn(f'Retrying to access {pageURL} for {trials} time.')
                 time.sleep(1)
             else:
                 conf.logger.warn(f'Maximum trials exceeded. Aborting...')
@@ -62,7 +61,7 @@ def getBookInfo(currentRow:pd.Series)->list:
             if retAttr is None or isWrongInfo(retAttr, currentRow[conf.QUERY_2_EXCEL[attr]]): 
                 raise AutomateError(f"the retrived book's {attr} {retAttr} doesn't match with {currentRow[conf.QUERY_2_EXCEL[attr]]}")
             bookInfo[attr] = retAttr
-        conf.logger.info(f'Matching editions:')
+        conf.logger.debug(f'Matching editions:')
         editionInfo = getBestMatchEdition(firstWork.get('edition_key'))
         return {**bookInfo, **editionInfo}
     raise AutomateError(f'No book found for {currentRow["Title"]}')
@@ -71,7 +70,6 @@ def getBookInfo(currentRow:pd.Series)->list:
 
 def debug():
     # docs = getBook("The+Elements+of+Styles")
-    config.dictConfig(conf.LOGGING_CONFIGURE)
     bookInfo = None
 
     # Return book info test

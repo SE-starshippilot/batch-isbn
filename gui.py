@@ -9,11 +9,6 @@ from utils import *
 import config as conf
         
 def createMainWindow():
-    checkbox_list = [
-            sg.Checkbox(
-                text='add retrived info', key='-Append-', disabled=True
-            )
-        ]
     progress_list = [
         [
             sg.Multiline(
@@ -41,7 +36,17 @@ def createMainWindow():
                 button_text='save as...', tooltip='preview the document you selected', disabled=True, enable_events=True, key='-Save-', button_color=('black', 'grey'), file_types=(('Excel Files', '.xls .xlsx .csv'),), default_extension='xlsx'
             )
         ],
-        checkbox_list,
+        [
+            sg.Checkbox(
+                text='add retrived info', key='-Append-', disabled=True
+            ),
+            sg.Text(
+                text='output verbosity'
+            ),
+            sg.OptionMenu(
+                values=('DEBUG', 'INFO', 'WARNING', 'ERROR'), default_value='INFO', key='-Level-', disabled=True
+            )
+        ],
         [
             sg.ProgressBar(
                 size=(25, 30), max_value=100, orientation='h', key='-Prog-'
@@ -90,7 +95,7 @@ def process():
     conf.window['-Prog-'].update(current_count=curr_index)
     print(f'Starting at {conf.window.metadata["start"]} ending at {conf.window.metadata["end"]}')
     currentRow = df.loc[curr_index, :]
-    conf.logger.info('Handling Book: {df.loc[curr_index, "Title"]}')
+    conf.logger.info(f'Handling Book: {df.loc[curr_index, "Title"]}')
     if currentRow['ISBN'] == currentRow['ISBN']: # the ISBN field is not empty
         df.loc[curr_index, 'Notes'] = 'ISBN already available'
         conf.logger.debug('ISBN already written. Skipping.')
@@ -159,7 +164,7 @@ def main():
                 conf.window.metadata['end'] = len(df.index) - 1
                 conf.window['-Prog-'].update(current_count=conf.window.metadata['start'], max=conf.window.metadata['end']) # restore progress
                 conf.window['-Log-'].update(value=f'Saving result to {conf.window.metadata["save_path"]}.\n', append=True)
-                setElementDisable(conf.window, False, '-Reset-', '-Toggle-', '-Preview-', '-Save-') # user can reset
+                setElementDisable(conf.window, False, '-Reset-', '-Toggle-', '-Preview-', '-Save-', '-Level-') # user can reset
                 if conf.window.metadata.get('append', None):
                     conf.window['-Append-'].update(value=conf.window.metadata['append']) # make sure information is always added/not added
                     setElementDisable(conf.window, True, '-Append-') # if the window has started processing, user cannot change the 'Append' attribute
@@ -168,7 +173,7 @@ def main():
         if event == '-Toggle-':
             if init:
                 conf.window.metadata['append'] = value['-Append-'] # unnecessary?
-                if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != conf.window.metadata['append']:
+                if (f'{conf.EXCEL_FIELDS[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != conf.window.metadata['append']:
                     foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
                     if conf.window.metadata['append']:
                         conf.logger.info("Writing found information into file")
@@ -179,13 +184,14 @@ def main():
                 if process_thread.is_alive() == False:
                     process_thread.run()
                 init = False
+            conf.logger.setLevel(conf.LOG_DICT[value['-Level-']])
             setElementDisable(conf.window, True, '-Append-') # why did I add this statement? To stop the user from changing once process started
             process_thread.toggle()
-            setElementDisable(conf.window, process_thread.get_run_status(), '-Reset-', '-Preview-', '-Save-')
+            setElementDisable(conf.window, process_thread.get_run_status(), '-Reset-', '-Preview-', '-Save-', '-Level-')
             conf.window['-Toggle-'].update(text = 'Pause' if process_thread.get_run_status() else 'Start')
         if event == '-Reset-':
             init = True
-            setElementDisable(conf.window, False, '-Toggle-', '-Append-') # make the 'Start' button clickable
+            setElementDisable(conf.window, False, '-Toggle-', '-Append-', '-Level-') # make the 'Start' button clickable
             conf.window['-Toggle-'].update(text='Start')
             conf.window['-Log-'].update(value='Resetted progress\n', append=False)
             conf.window.metadata['start'] = 0
@@ -205,7 +211,7 @@ def main():
             conf.window['-Log-'].update(value='Done\n', append=True)
             sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True)
             setElementDisable(conf.window, True, '-Toggle-')
-            setElementDisable(conf.window, False, '-Reset-', '-Preview-', '-Save-')
+            setElementDisable(conf.window, False, '-Reset-', '-Preview-', '-Save-', '-Level-')
     conf.window.close()
 
 # initialize the window
