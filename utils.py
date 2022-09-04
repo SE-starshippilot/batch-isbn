@@ -1,24 +1,52 @@
 import re
-import traceback
 import base64
 import threading
+import traceback
 import PySimpleGUI as sg
 import numpy as np
 from fuzzywuzzy import fuzz
 
 import config as conf
 
-truncate = lambda x: 1 if x >= conf.HIGHBOUND else 0 if x <= conf.LOWBOUND else x
 getb64encode = lambda s: base64.b64encode(s.encode("ascii"))
-convert = lambda attr: conf.EXCEL_FIELD_MAP[attr]
+
+class GUILogger():
+    def __init__(self, target: sg.Window, level=conf.INFO):
+        self.__target = target
+        self.__level = level
+    
+    def __log(self, level, message, append):
+        if level >= self.__level:
+            self.__target['-Log-'].update(value=f'{message.rstrip()}\n', append=append, text_color_for_value=conf.LOG_COLOR[level])
+    
+    def info(self, message, append=True):
+        self.__log(conf.INFO, message, append)
+
+    def warn(self, message, append=True):
+        self.__log(conf.WARNING, message, append)
+    
+    def error(self, message, append=True):
+        self.__log(conf.ERROR, message, append)
+
+    def setLevel(self, level):
+        self.__level = level
+
+    def __setattr__(self, __name, __value) -> None:
+        if __name.endswith('level'):
+            assert __value in [conf.INFO, conf.WARNING, conf.ERROR], 'Invalid logging level.'
+        elif __name.endswith('target'):
+            assert isinstance(__value, sg.Window), f'Window {__value} not initialized!'
+        else:
+            raise ValueError
+        self.__dict__[__name] = __value
 
 class AutomateError(Exception):
     def __init__(self, message: str, *args: object) -> None:
-        updateBuffer(message)
+        conf.logger.error(message)
 
 class NetworkError(Exception):
     def __init__(self, message: str, *args: object) -> None:
-        updateBuffer(message)
+        conf.logger.error(message)
 
 class PThread(threading.Thread):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, daemon=None, binding_window=None):
@@ -150,11 +178,6 @@ def debug():
     listb = ['zmk', 'zzz', 'kas']
     print(isWrongInfo(lista, listb))
 
-def updateBuffer(message, append=True):
-    assert isinstance(conf.window, sg.Window), 'Window not initialized!'
-    stack_length = len(traceback.format_stack())
-    print(stack_length)
-    conf.window['-Log-'].update(value=f'{message}\n', append=append)
 
 if __name__ == '__main__':
     debug()

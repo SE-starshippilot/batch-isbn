@@ -90,7 +90,7 @@ def process():
     conf.window['-Prog-'].update(current_count=curr_index)
     print(f'Starting at {conf.window.metadata["start"]} ending at {conf.window.metadata["end"]}')
     currentRow = df.loc[curr_index, :]
-    conf.window['-Log-'].update(value=f'Handling Book: {df.loc[curr_index, "Title"]}\n', append=True)
+    conf.logger.info('Handling Book: {df.loc[curr_index, "Title"]}')
     if currentRow['ISBN'] == currentRow['ISBN']: # the ISBN field is not empty
         df.loc[curr_index, 'Notes'] = 'ISBN already available'
         conf.logger.info('ISBN already written. Skipping.')
@@ -100,19 +100,23 @@ def process():
             conf.logger.info('Detected Missing Fields. Generating URL for manual retrival.')
         else:
             bookInfo = None
-            try:
-                bookInfo = getBookInfo(currentRow)
-            except AutomateError:
-                df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
-                conf.logger.warn('No matching information found. Generating URL for manual retrival.')
-            else:
-                conf.logger.info(f"Found ISBN: {bookInfo['ISBN']}")
-                df.loc[curr_index, 'ISBN'] = bookInfo['ISBN']
-                if conf.window.metadata['append']:
-                    for attr in conf.EXCEL_FIELDS:
-                        attrValue = bookInfo.get(conf.EXCEL_2_QUERY[attr], '')
-                        if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
-                        df.loc[curr_index, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
+            currentRowNotes = df.loc[curr_index, 'Notes']
+            if (currentRowNotes != currentRowNotes) or not(currentRowNotes.startswith('http')): # for empty notes or notes with network error
+                try:
+                    bookInfo = getBookInfo(currentRow)
+                except AutomateError:
+                    df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
+                    conf.logger.warn('No matching information found. Generating URL for manual retrival.')
+                except NetworkError:
+                    df.loc[curr_index, 'Notes'] = 'Network Error, please check and retry'
+                else:
+                    conf.logger.info(f"Found ISBN: {bookInfo['ISBN']}")
+                    df.loc[curr_index, 'ISBN'] = bookInfo['ISBN']
+                    if conf.window.metadata['append']:
+                        for attr in conf.EXCEL_FIELDS:
+                            attrValue = bookInfo.get(conf.EXCEL_2_QUERY[attr], '')
+                            if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
+                            df.loc[curr_index, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
     conf.window.metadata['start'] = curr_index
     return curr_index >= conf.window.metadata['end']
         

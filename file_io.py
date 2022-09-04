@@ -2,7 +2,7 @@ import os
 import pickle
 from functools import wraps
 
-from utils import updateBuffer, getb64encode
+from utils import getb64encode
 
 getCkptPath = lambda x: os.path.join(os.getcwd(), '.tmp', f'{getb64encode(x)}.pkl')
 

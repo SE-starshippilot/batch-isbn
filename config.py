@@ -18,6 +18,15 @@ SHEET_INDEX = 0
 LOWBOUND = 0.4
 HIGHBOUND = 0.7
 MAX_SCORE = 1.0
+INFO = 10
+WARNING = 20
+ERROR = 30
+LOG_LEVEL = WARNING
+LOG_COLOR = {
+    INFO: 'black',
+    WARNING: 'orange',
+    ERROR: 'red'
+}
 BOOK_QUERY_URL = "https://openlibrary.org/search.json?q="
 EDITION_QUERY_URL = "https://openlibrary.org/books/"
 MAXIMUM_TRIALS = 3
@@ -41,4 +50,5 @@ class GUILogger():
     buffer = ''
     append = True
 window = None
+logger = None
 
