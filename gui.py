@@ -93,20 +93,20 @@ def process():
     conf.window['-Log-'].update(value=f'Handling Book: {df.loc[curr_index, "Title"]}\n', append=True)
     if currentRow['ISBN'] == currentRow['ISBN']: # the ISBN field is not empty
         df.loc[curr_index, 'Notes'] = 'ISBN already available'
-        conf.window['-Log-'].update(value='ISBN already written. Skipping.\n', append=True)
+        conf.logger.info('ISBN already written. Skipping.')
     else:  
         if (conf.window.metadata['append'] and currentRow.isna().sum() > 2 + len(conf.EXCEL_FIELDS)) or (not(conf.window.metadata['append']) and currentRow.isna().sum() > 2): # If fields other than ISBN and Notes are empty
             df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
-            updateBuffer('\tDetected Missing Fields. Generating URL for manual retrival.\n')
+            conf.logger.info('Detected Missing Fields. Generating URL for manual retrival.')
         else:
             bookInfo = None
             try:
                 bookInfo = getBookInfo(currentRow)
             except AutomateError:
                 df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
-                updateBuffer('No matching information found. Generating URL for manual retrival.\n')
+                conf.logger.warn('No matching information found. Generating URL for manual retrival.')
             else:
-                updateBuffer(f"Found ISBN: {bookInfo['ISBN']}\n")
+                conf.logger.info(f"Found ISBN: {bookInfo['ISBN']}")
                 df.loc[curr_index, 'ISBN'] = bookInfo['ISBN']
                 if conf.window.metadata['append']:
                     for attr in conf.EXCEL_FIELDS:
@@ -118,12 +118,13 @@ def process():
         
 def quitting(df:pd.DataFrame): # checked
     global process_thread
-    if process_thread or process_thread.get_done_status(): # when quitting, the process is already done
+    if process_thread is None or process_thread.get_done_status(): # when quitting, the process is already done
         os.remove(getCkptPath(conf.window.metadata["input_path"]))
-    elif df is not None: # when quitting, not initialized yet
+    elif df is not None or not(process_thread.get_done_status()): # when quitting, not initialized yet or not started yet
             df.to_excel(conf.window.metadata['save_path'], index=False) #
-            sg.popup(f'Saving checkpoint at {conf.window.metadata["start"]}',title='Close', keep_on_top=True)
+            sg.popup(f'Saving checkpoint at {conf.window.metadata["start"]+1}',title='Close', keep_on_top=True)
             writeCheckpoint(conf.window.metadata)
+            process_thread.force_quit()
 
 
 def setElementDisable(window, disable:bool, *args): # checked
@@ -166,10 +167,10 @@ def main():
                 if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}' in df.columns) != conf.window.metadata['append']:
                     foundAttrName = [i + conf.FOUND_ATTRIBUTE_POSTFIX for i in conf.EXCEL_FIELDS]
                     if conf.window.metadata['append']:
-                        updateBuffer(f"Writing found information into file...\n")
+                        conf.logger.info("Writing found information into file")
                         df = pd.concat([df, pd.DataFrame(columns=foundAttrName)])
                     else:
-                        updateBuffer(f"Cleaning found information into file...\n")
+                        conf.logger.info(f"Cleaning found information into file")
                         df = df.drop(foundAttrName, axis=1)
                 if process_thread.is_alive() == False:
                     process_thread.run()
@@ -195,7 +196,7 @@ def main():
         if event == '-Save_As-':
             if value['-Save-'] is not None:
                 conf.window.metadata['save_path'] = value['-Save-']
-                conf.window['-Log-'].update(value=f'Now saving to {conf.window.metadata["save_path"]}\n', append=True)
+                conf.logger.info(f'Now saving to {conf.window.metadata["save_path"]}',)
         if event == '-Done-':
             conf.window['-Log-'].update(value='Done\n', append=True)
             sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True)
@@ -210,6 +211,7 @@ with open('./config/theme.json', 'r') as f:
     sg.theme('retro')
 os.makedirs(f'{os.getcwd()}/.tmp', exist_ok=True)
 conf.window = createMainWindow()
+conf.logger = GUILogger(conf.window, level=conf.WARNING)
 process_thread = PThread(target=process, binding_window=conf.window)
 process_thread.start()
 
