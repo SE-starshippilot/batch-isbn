@@ -1,4 +1,3 @@
-import time
 import json
 import pandas as pd
 import PySimpleGUI as sg
@@ -91,9 +90,6 @@ def process():
     conf.window['-Prog-'].update(current_count=curr_index)
     print(f'Starting at {conf.window.metadata["start"]} ending at {conf.window.metadata["end"]}')
     currentRow = df.loc[curr_index, :]
-# conf.window['-Log-'].update(value=f'{curr_index}\n', append=True)
-# time.sleep(0.01)
-# conf.window.metadata['start'] = curr_index
     conf.window['-Log-'].update(value=f'Handling Book: {df.loc[curr_index, "Title"]}\n', append=True)
     if currentRow['ISBN'] == currentRow['ISBN']: # the ISBN field is not empty
         df.loc[curr_index, 'Notes'] = 'ISBN already available'
@@ -194,12 +190,6 @@ def main():
                 process_thread.start()
             else:
                 process_thread.reset()
-
-            # process_thread.reset()
-            # if (f'{df.columns[0]}{conf.FOUND_ATTRIBUTE_POSTFIX}') in df.columns: # TODO: check this (do we even need this?)
-            #     keep_cols = [_ for _ in df.columns if not(_.endswith(conf.FOUND_ATTRIBUTE_POSTFIX))]
-            #     df = pd.DataFrame(df[keep_cols], columns=df.columns)
-            # writeCheckpoint(window.metadata)
         if event == '-Preview-':
             preview(df)
         if event == '-Save_As-':

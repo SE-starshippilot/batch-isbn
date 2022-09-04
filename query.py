@@ -31,7 +31,7 @@ def accessPage(pageURL)->json:
                 time.sleep(1)
             else:
                 updateBuffer(f'Maximum trials exceeded. Aborting...')
-                return ''
+                raise NetworkError(reason)
         else:
             return json.loads(page.text)
 
