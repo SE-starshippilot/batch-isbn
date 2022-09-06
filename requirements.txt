@@ -1,7 +1,6 @@
 requests
 beautifulsoup4
 xlrd
-json
 numpy
 pandas
 fuzzywuzzy
