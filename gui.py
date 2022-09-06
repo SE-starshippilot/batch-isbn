@@ -127,13 +127,16 @@ def process():
         
 def quitting(df:pd.DataFrame): # checked
     global process_thread
-    df.to_excel(conf.window.metadata['save_path'], index=False)
-    if process_thread is None or process_thread.get_done_status(): # when quitting, the process is already done
-        os.remove(getCkptPath(conf.window.metadata["input_path"]))
-    elif df is not None or not(process_thread.get_done_status()): # when quitting, not initialized yet or not started yet
+    if df is not None: # have read dataframe
+        df.to_excel(conf.window.metadata['save_path'], index=False)
+        if process_thread is None or process_thread.get_done_status(): # when quitting, the process is already done
+            os.remove(getCkptPath(conf.window.metadata["input_path"]))
+        else:
             sg.popup(f'Saving checkpoint at {conf.window.metadata["start"]+1}',title='Close', keep_on_top=True)
             writeCheckpoint(conf.window.metadata)
             process_thread.force_quit()
+    else:
+        process_thread.force_quit()
 
 
 def setElementDisable(window, disable:bool, *args): # checked
