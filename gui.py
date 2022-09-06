@@ -97,31 +97,27 @@ def process():
     currentRow = df.loc[curr_index, :]
     conf.logger.info(f'Handling Book: {df.loc[curr_index, "Title"]}')
     if currentRow['ISBN'] == currentRow['ISBN']: # the ISBN field is not empty
-        df.loc[curr_index, 'Notes'] = 'ISBN already available'
+        df.loc[curr_index, 'Notes'] = 'Found ISBN'
         conf.logger.debug('ISBN already written. Skipping.')
-    else:  
-        if (conf.window.metadata['append'] and currentRow.isna().sum() > 2 + len(conf.EXCEL_FIELDS)) or (not(conf.window.metadata['append']) and currentRow.isna().sum() > 2): # If fields other than ISBN and Notes are empty
-            df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
-            conf.logger.warn('Detected Missing Fields. Generating URL for manual retrival.')
+    else:
+        if isinstance(currentRow['Notes'], str) and currentRow['Notes'].startswith('Network'):
+            currentRow['Notes'] = ''
+        bookInfo = None
+        try:
+            bookInfo = getBookInfo(currentRow)
+        except MissingInfoError as me:
+            df.loc[curr_index, 'Notes'] = me.generateManualURL()
+        except NetworkUnreachableError as ne:
+            df.loc[curr_index, 'Notes'] = ne.__str__()
         else:
-            bookInfo = None
-            currentRowNotes = df.loc[curr_index, 'Notes']
-            if (currentRowNotes != currentRowNotes) or not(currentRowNotes.startswith('http')): # for empty notes or notes with network error
-                try:
-                    bookInfo = getBookInfo(currentRow)
-                except AutomateError:
-                    df.loc[curr_index, 'Notes'] = generateManualURL(currentRow['Title'])
-                    conf.logger.warn('Generating URL for manual retrival.')
-                except NetworkError:
-                    df.loc[curr_index, 'Notes'] = 'Network Error, please check and retry'
-                else:
-                    conf.logger.info(f"Found ISBN: {bookInfo['ISBN']}")
-                    df.loc[curr_index, 'ISBN'] = bookInfo['ISBN']
-                    if conf.window.metadata['append']:
-                        for attr in conf.EXCEL_FIELDS:
-                            attrValue = bookInfo.get(conf.EXCEL_2_QUERY[attr], '')
-                            if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
-                            df.loc[curr_index, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
+            conf.logger.info(f"Found ISBN: {bookInfo['ISBN']}")
+            df.loc[curr_index, 'ISBN'] = bookInfo['ISBN']
+            df.loc[curr_index, 'Notes'] = 'Found ISBN'
+            if conf.window.metadata['append']:
+                for attr in conf.EXCEL_FIELDS:
+                    attrValue = bookInfo.get(conf.EXCEL_2_QUERY[attr], '')
+                    if isinstance(attrValue, list): attrValue = ', '.join(attrValue)
+                    df.loc[curr_index, attr+conf.FOUND_ATTRIBUTE_POSTFIX] = attrValue
     conf.window.metadata['start'] = curr_index
     return curr_index >= conf.window.metadata['end']
         
@@ -211,7 +207,7 @@ def main():
                 conf.window.metadata['save_path'] = value['-Save-']
                 conf.logger.info(f'Now saving to {conf.window.metadata["save_path"]}',)
         if event == '-Done-':
-            conf.window['-Log-'].update(value='Done\n', append=True)
+            conf.logger.debug(value='Done\n', append=True)
             sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True)
             setElementDisable(conf.window, True, '-Toggle-')
             setElementDisable(conf.window, False, '-Reset-', '-Preview-', '-Save-', '-Level-')

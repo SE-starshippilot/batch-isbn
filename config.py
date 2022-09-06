@@ -31,6 +31,8 @@ LOG_DICT = {
 }
 BOOK_QUERY_URL = "https://openlibrary.org/search.json?q="
 EDITION_QUERY_URL = "https://openlibrary.org/books/"
+ENGLISH_BOOK_SEARCH_PROVIDERS = {"Amazon": "https://www.amazon.com/s?k="}
+CHINESE_BOOK_SEARCH_PROVIDERS = {"豆瓣": "https://search.douban.com/book/subject_search?search_text="}
 MAXIMUM_TRIALS = 3
 YEAR_PATTERN = "[0-9]{4}"
 HEURISTIC_SCORE_MAP = [100, 10, 1]
@@ -39,8 +41,6 @@ PHYSICAL_FORMAT_MAP={
     "mass market paperback": 0.8,
     "hardcover": 0.2
 }
-CHINESE_BOOK_SEARCH_URL = "https://search.douban.com/book/subject_search?search_text="
-ENGLISH_BOOK_SEARCH_URL = "https://www.amazon.com/s?k="
 BUTTON_APPEARANCE = {True:('black', 'grey'), False:('white', '#74b9ff')}
 INITIAL_METADICT = {'input_path': '',
                      'save_path':'', 
@@ -53,4 +53,6 @@ class GUILogger():
     append = True
 window = None
 logger = None
+english_book_search_url = ENGLISH_BOOK_SEARCH_PROVIDERS["Amazon"]
+chinese_book_search_url = CHINESE_BOOK_SEARCH_PROVIDERS["豆瓣"]
 

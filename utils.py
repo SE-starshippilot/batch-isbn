@@ -44,12 +44,26 @@ class GUILogger():
         self.__dict__[__name] = __value
 
 class AutomateError(Exception):
-    def __init__(self, message: str, *args: object) -> None:
-        conf.logger.error(message)
+    def __init__(self,reason:str, *args: object) -> None:
+        self.__reason = reason
+        conf.logger.error(reason)
 
-class NetworkError(Exception):
-    def __init__(self, message: str, *args: object) -> None:
-        conf.logger.error(message)
+class MissingInfoError(AutomateError):
+    def __init__(self, reason: str, title: str) -> None:
+        super().__init__(reason)
+        self.__title = title
+
+    def generateManualURL(self)->str:
+        hasChineseChar = lambda x: len(re.findall(r'[\u4e00-\u9fff]+', x)) != 0
+        carrier = conf.CHINESE_BOOK_SEARCH_URL if hasChineseChar(self.__title) else conf.ENGLISH_BOOK_SEARCH_URL
+        return f'=HYPERLINK("{carrier}{self.__title}", "{self.__reason}")'
+
+class NetworkUnreachableError(AutomateError):
+    def __init__(self, reason: str, *args: object) -> None:
+        super().__init__(reason, *args)
+
+    def __str__(self):
+        return 'Network Unreachable'
 
 class PThread(threading.Thread):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, daemon=None, binding_window=None):
@@ -101,25 +115,6 @@ class PThread(threading.Thread):
     def get_run_status(self)->bool:
         return self.__running.is_set()
 
-
-def strMatch(found: str, correct: str) -> float:
-    """
-    returns maximum similarity index of a given st
-    it is also possible that the substring of the correct string has higher similarity
-    e.g: correct is 'WLC Books' and there is 'W L C' in found. They should be the most similar one.
-    """
-    found = found.replace(' ', '')
-    subCorrect = correct.split(' ')
-    if not(correct in subCorrect): subCorrect.append(correct)
-    maxScore = -1
-    for sub in subCorrect:
-        score = fuzz.partial_ratio(sub, found)/100
-        if score > maxScore: maxScore = score
-        if maxScore >= conf.MAX_SCORE: break
-    return maxScore
-
-strMatchv0 = lambda found, correct: fuzz.partial_ratio(found, correct)/100
-
 def calcEditionSimilarity(found:dict, correct:dict)->int:
     """
         Calculate the similarity between a given edition and the correct, return the information found and a heuristic similarity
@@ -156,11 +151,6 @@ def calcEditionSimilarity(found:dict, correct:dict)->int:
     editionSimilarity = np.array(conf.HEURISTIC_SCORE_MAP) @ similarityMap
     return editionInfo, editionSimilarity
 
-def generateManualURL(bookName:str)->str:
-    hasChineseChar = lambda x: len(re.findall(r'[\u4e00-\u9fff]+', x)) != 0
-    carrier = conf.CHINESE_BOOK_SEARCH_URL if hasChineseChar(bookName) else conf.ENGLISH_BOOK_SEARCH_URL
-    return carrier + bookName
-
 def isWrongInfo(found:any, correct:any)->bool:
     def splitAttr(attr:any)->list:
         if isinstance(attr, str):
@@ -180,7 +170,6 @@ def debug():
     lista = ['abc', 'def', 'ghi']
     listb = ['zmk', 'zzz', 'kas']
     print(isWrongInfo(lista, listb))
-
 
 if __name__ == '__main__':
     debug()

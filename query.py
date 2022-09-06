@@ -3,12 +3,11 @@ import config as conf
 import json
 import time
 import requests
-import traceback
 import pandas as pd
 from urllib import parse
 
 from utils import *
-import config
+import config as conf
 
 def accessPage(pageURL)->json:
     """
@@ -18,20 +17,18 @@ def accessPage(pageURL)->json:
     trials = 0
     while True:
         conf.logger.debug(f'Accessing {pageURL}')
-        reason = ''
         try:
             page = requests.get(pageURL)
             assert page.ok
+            return json.loads(page.text)
         except Exception as e:
             if trials < conf.MAXIMUM_TRIALS:
                 trials += 1
-                conf.logger.warn(f'Retrying to access {pageURL} for {trials} time.')
+                conf.logger.warn(f'Cannot access. Retrying for {trials} time.')
                 time.sleep(1)
             else:
                 conf.logger.warn(f'Maximum trials exceeded. Aborting...')
-                raise NetworkError(reason)
-        else:
-            return json.loads(page.text)
+                raise MissingInfoError()
 
 def getBookInfo(currentRow:pd.Series)->list:
     """
@@ -51,6 +48,9 @@ def getBookInfo(currentRow:pd.Series)->list:
                 break
         conf.logger.info('Registering {bestMatchEdition[0]} as best match edition.')
         return bestMatchEdition[0]
+    if  (conf.window.metadata['append'] and currentRow.isna().sum() > 2 + len(conf.EXCEL_FIELDS)) or \
+        (not(conf.window.metadata['append']) and currentRow.isna().sum() > 2):
+        raise MissingInfoError('Missing information in the input row.')
     bookURL = conf.BOOK_QUERY_URL + parse.quote_plus(currentRow['Title'])
     bookPage = accessPage(bookURL)
     bookInfo = {} # founded book information
@@ -59,12 +59,12 @@ def getBookInfo(currentRow:pd.Series)->list:
         for attr in conf.QUERY_FIELDS: # check if title and author matches
             retAttr = firstWork.get(attr)
             if retAttr is None or isWrongInfo(retAttr, currentRow[conf.QUERY_2_EXCEL[attr]]): 
-                raise AutomateError(f"the retrived book's {attr} {retAttr} doesn't match with {currentRow[conf.QUERY_2_EXCEL[attr]]}")
+                raise MissingInfoError(f"the retrived book's {attr} {retAttr} doesn't match with {currentRow[conf.QUERY_2_EXCEL[attr]]}")
             bookInfo[attr] = retAttr
         conf.logger.debug(f'Matching editions:')
         editionInfo = getBestMatchEdition(firstWork.get('edition_key'))
         return {**bookInfo, **editionInfo}
-    raise AutomateError(f'No book found for {currentRow["Title"]}')
+    raise MissingInfoError(f'No book found for {currentRow["Title"]}')
 
 
 
