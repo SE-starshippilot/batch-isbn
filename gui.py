@@ -84,7 +84,7 @@ def preview(df:pd.DataFrame):
     layout = [[sg.Table(headings=df_headings, values=df_vals)]]
     preview_window = sg.Window('Preview', layout, modal=True)
     while True:
-        event, values = preview_window.read()
+        event, _ = preview_window.read()
         if event == "Exit" or event == sg.WIN_CLOSED:
             break
     preview_window.close()
@@ -133,7 +133,6 @@ def quitting(df:pd.DataFrame): # checked
             process_thread.force_quit()
     else:
         process_thread.force_quit()
-
 
 def setElementDisable(window, disable:bool, *args): # checked
     """
@@ -207,7 +206,7 @@ def main():
                 conf.window.metadata['save_path'] = value['-Save-']
                 conf.logger.info(f'Now saving to {conf.window.metadata["save_path"]}',)
         if event == '-Done-':
-            conf.logger.debug(value='Done\n', append=True)
+            conf.logger.debug('Done')
             sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True)
             setElementDisable(conf.window, True, '-Toggle-')
             setElementDisable(conf.window, False, '-Reset-', '-Preview-', '-Save-', '-Level-')

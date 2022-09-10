@@ -45,7 +45,7 @@ class GUILogger():
 
 class AutomateError(Exception):
     def __init__(self,reason:str, *args: object) -> None:
-        self.__reason = reason
+        self.reason = reason
         conf.logger.error(reason)
 
 class MissingInfoError(AutomateError):
@@ -55,8 +55,8 @@ class MissingInfoError(AutomateError):
 
     def generateManualURL(self)->str:
         hasChineseChar = lambda x: len(re.findall(r'[\u4e00-\u9fff]+', x)) != 0
-        carrier = conf.CHINESE_BOOK_SEARCH_URL if hasChineseChar(self.__title) else conf.ENGLISH_BOOK_SEARCH_URL
-        return f'=HYPERLINK("{carrier}{self.__title}", "{self.__reason}")'
+        carrier = conf.chinese_book_search_url if hasChineseChar(self.__title) else conf.english_book_search_url
+        return f'=HYPERLINK("{carrier}{self.__title}", "{self.reason}")'
 
 class NetworkUnreachableError(AutomateError):
     def __init__(self, reason: str, *args: object) -> None:
@@ -120,7 +120,7 @@ def calcEditionSimilarity(found:dict, correct:dict)->int:
         Calculate the similarity between a given edition and the correct, return the information found and a heuristic similarity
         The similarity is based on the publisher, publish date and type of meida
     """
-    editionInfo = {'ISBN':['ISBN Not Found']}
+    editionInfo = {'ISBN': None}
     similarityMap = np.zeros_like(conf.HEURISTIC_SCORE_MAP)
 
     for idx, attr in enumerate(conf.EDITION_ATTRIBUTES):
@@ -131,7 +131,7 @@ def calcEditionSimilarity(found:dict, correct:dict)->int:
                 correctAttr = correct[conf.QUERY_2_EXCEL[attr]]
                 if idx == 0: # publisher
                     similarityMap[idx] = fuzz.partial_ratio(foundAttr, correctAttr)/100
-                else: # publish date
+                else: # publish date: if found > +-1 set to 0
                     foundAttr = int(re.findall(conf.YEAR_PATTERN, foundAttr)[0]) # excel reads year as string
                     if correctAttr == foundAttr:
                         similarityMap[idx] = 1
@@ -147,7 +147,6 @@ def calcEditionSimilarity(found:dict, correct:dict)->int:
                 break
         elif idx < 3:
             similarityMap[idx] = 0
-
     editionSimilarity = np.array(conf.HEURISTIC_SCORE_MAP) @ similarityMap
     return editionInfo, editionSimilarity
 
