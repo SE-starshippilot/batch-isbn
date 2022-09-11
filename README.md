@@ -53,6 +53,14 @@ When the process finishes, it will pop up a window to inform the user.
 - I haven't have time to implement multithreading (async) to process multiple books in the same time, so performance is expected to suck. SORRY!
 - Will fall into manual searching if any of the field is left blank
 
+## Future work
+
+Currently I don't have effort or time to implement the following features. I will do so in the far, far future.....
+
+- [ ] Implement async and multithread queries.
+- [ ] More flexible carrier.
+- [ ] Counter Amazon and Douban's anti-scrapping technique.
+
 ## Contribution, Suggestions and Bugs
 
 Currently I do not accept any pull requests, but feel free to create issues if you encounter bugs.
