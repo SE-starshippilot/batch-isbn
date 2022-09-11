@@ -24,11 +24,10 @@ def accessPage(pageURL)->json:
         except Exception:
             if trials < conf.MAXIMUM_TRIALS:
                 trials += 1
-                conf.logger.warn(f'Cannot access. Retrying for {trials} time.')
+                conf.logger.warn(f'Cannot access{pageURL}. Retrying for {trials} time.')
                 time.sleep(1)
             else:
-                conf.logger.warn(f'Maximum trials exceeded. Aborting...')
-                raise NetworkUnreachableError(f'Cannot access {pageURL}')
+                raise NetworkUnreachableError(f'Maximum trials exceeded. Aborting...')
 
 def getBookInfo(currentRow:pd.Series)->list:
     """
