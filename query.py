@@ -28,7 +28,7 @@ def accessPage(pageURL)->json:
                 time.sleep(1)
             else:
                 conf.logger.warn(f'Maximum trials exceeded. Aborting...')
-                raise NetworkUnreachableError()
+                raise NetworkUnreachableError(f'Cannot access {pageURL}')
 
 def getBookInfo(currentRow:pd.Series)->list:
     """
@@ -46,7 +46,7 @@ def getBookInfo(currentRow:pd.Series)->list:
                 bestMatchEdition = (editionInfo, editionSimilarity)
             if bestMatchEdition[1] >= 110: # If publisher & edition is the same, quit searching.
                 break
-        conf.logger.info('Registering {bestMatchEdition[0]} as best match edition.')
+        conf.logger.info(f'Registering {bestMatchEdition[0]} as best match edition.')
         return bestMatchEdition[0]
     if  (conf.window.metadata['append'] and currentRow.isna().sum() > 2 + len(conf.EXCEL_FIELDS)) or \
         (not(conf.window.metadata['append']) and currentRow.isna().sum() > 2):

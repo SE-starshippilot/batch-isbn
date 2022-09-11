@@ -1,4 +1,4 @@
-FOUND_ATTRIBUTE_POSTFIX = "_found"
+VERSION = '1.1.0'
 EDITION_ATTRIBUTES = ["publishers", "publish_date", "physical_format", "isbn_13", "isbn_10"]
 EXCEL_FIELDS = ["Title", "Author", "Publisher", "Edition Date"]
 QUERY_FIELDS = ["title", "author_name"]
@@ -18,6 +18,7 @@ SHEET_INDEX = 0
 LOWBOUND = 0.4
 HIGHBOUND = 0.7
 MAX_SCORE = 1.0
+FOUND_ATTRIBUTE_POSTFIX = "_found"
 DEBUG = (0, 'DEBUG', 'black')
 INFO = (10,'INFO', 'black')
 WARNING = (20,'WARNING', 'orange')

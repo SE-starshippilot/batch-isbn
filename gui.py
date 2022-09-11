@@ -63,7 +63,7 @@ def createMainWindow():
             sg.Column(progress_list)
         ]
     ]
-    return sg.Window(title='Batch ISBN Retriver v0.3', layout=layout, modal=False, metadata=conf.INITIAL_METADICT, icon=r'config\favicon.ico')
+    return sg.Window(title=f'Batch ISBN Retriver v{conf.VERSION}', layout=layout, modal=False, metadata=conf.INITIAL_METADICT, icon=r'config\favicon.ico')
 
 def modalize(window_func):
     """

@@ -1,7 +1,6 @@
 import re
 import base64
 import threading
-import traceback
 import PySimpleGUI as sg
 import numpy as np
 from fuzzywuzzy import fuzz
