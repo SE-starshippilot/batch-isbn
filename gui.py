@@ -63,7 +63,7 @@ def createMainWindow():
             sg.Column(progress_list)
         ]
     ]
-    return sg.Window(title='Batch ISBN Retriver v0.3', layout=layout, modal=False, metadata=conf.INITIAL_METADICT)
+    return sg.Window(title='Batch ISBN Retriver v0.3', layout=layout, modal=False, metadata=conf.INITIAL_METADICT, icon=r'config\favicon.ico')
 
 def modalize(window_func):
     """
@@ -82,7 +82,7 @@ def preview(df:pd.DataFrame):
     df_vals = df.loc[1:, :].fillna('')
     df_vals = df_vals.values.tolist()
     layout = [[sg.Table(headings=df_headings, values=df_vals)]]
-    preview_window = sg.Window('Preview', layout, modal=True)
+    preview_window = sg.Window('Preview', layout, modal=True, icon=r'config\favicon.ico')
     while True:
         event, _ = preview_window.read()
         if event == "Exit" or event == sg.WIN_CLOSED:
@@ -207,7 +207,7 @@ def main():
                 conf.logger.info(f'Now saving to {conf.window.metadata["save_path"]}',)
         if event == '-Done-':
             conf.logger.debug('Done')
-            sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True)
+            sg.popup('All done!', title='Batch ISBN v0.2', keep_on_top=True, icon=r'config\favicon.ico')
             setElementDisable(conf.window, True, '-Toggle-')
             setElementDisable(conf.window, False, '-Reset-', '-Preview-', '-Save-', '-Level-')
     conf.window.close()

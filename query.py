@@ -21,7 +21,7 @@ def accessPage(pageURL)->json:
             page = requests.get(pageURL)
             assert page.ok
             return json.loads(page.text)
-        except Exception as e:
+        except Exception:
             if trials < conf.MAXIMUM_TRIALS:
                 trials += 1
                 conf.logger.warn(f'Cannot access. Retrying for {trials} time.')
