@@ -6,13 +6,13 @@ This repository contains the source code and releases of Batch ISBN Fetcher, an 
 1. Clone repository
 
 ```shell
-   git clone https://github.com/SE-starshippilot/batch-isbn.git
+git clone https://github.com/SE-starshippilot/batch-isbn.git
 ```
 
 2. Install pip dependencies
 
 ```shell
-	pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
 3. Prepare the books you wish to retrieve using the [template](./template/sample.xlsx)
