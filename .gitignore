@@ -4,3 +4,5 @@ sample*.json
 __pycache__
 .tmp
 .DS_Store
+output
+export.json
