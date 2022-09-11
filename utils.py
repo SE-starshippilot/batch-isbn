@@ -49,14 +49,16 @@ class AutomateError(Exception):
         conf.logger.error(reason)
 
 class MissingInfoError(AutomateError):
-    def __init__(self, reason: str, title: str) -> None:
+    def __init__(self, reason: str, orgn_info: dict) -> None:
         super().__init__(reason)
-        self.__title = title
+        self.orgn_info = orgn_info
+
 
     def generateManualURL(self)->str:
         hasChineseChar = lambda x: len(re.findall(r'[\u4e00-\u9fff]+', x)) != 0
-        carrier = conf.chinese_book_search_url if hasChineseChar(self.__title) else conf.english_book_search_url
-        return f'=HYPERLINK("{carrier}{self.__title}", "{self.reason}")'
+        seacrh_field = '+'.join([str(self.orgn_info[attr]) for attr in conf.EXCEL_FIELDS if self.orgn_info[attr] == self.orgn_info[attr]])
+        carrier = conf.chinese_book_search_url if hasChineseChar(seacrh_field) else conf.english_book_search_url
+        return f'=HYPERLINK("{carrier}{seacrh_field}", "{self.reason}")'
 
 class NetworkUnreachableError(AutomateError):
     def __init__(self, reason: str, *args: object) -> None:
