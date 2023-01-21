@@ -134,9 +134,10 @@ def calcEditionSimilarity(found:dict, correct:dict)->int:
                     similarityMap[idx] = fuzz.partial_ratio(foundAttr, correctAttr)/100
                 else: # publish date: if found > +-1 set to 0
                     foundAttr = int(re.findall(conf.YEAR_PATTERN, foundAttr)[0]) # excel reads year as string
+                    correctAttr = int(correctAttr)
                     if correctAttr == foundAttr:
                         similarityMap[idx] = 1
-                    elif abs(correctAttr - foundAttr) <= 1:
+                    elif abs((correctAttr) - foundAttr) <= 1:
                         similarityMap[idx] = 0.5
                     else:
                         similarityMap[idx] = 0

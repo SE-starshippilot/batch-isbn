@@ -6,3 +6,6 @@ __pycache__
 .DS_Store
 output
 export.json
+temp.pkl
+*.xlsx
+*.html
