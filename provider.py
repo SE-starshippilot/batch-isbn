@@ -1,62 +1,16 @@
 import re
-import time
-import random
-from selenium import webdriver
 from bs4 import BeautifulSoup
 
-class PageScrapper:
-    """
-    A class that scrapes a webpage and returns a BeautifulSoup object.
-    """
-    def __init__(self, min_sleep_interval:float=2.0, max_sleep_interval:float=8.0, trial_times:int=3)->None:
-        self.trial_times = trial_times
-        self.sleep_interval = lambda : time.sleep(random.random()*(max_sleep_interval - min_sleep_interval) + min_sleep_interval)
-
-    def get_source(self)->BeautifulSoup:
-        if self.url is None: return None
-        for _ in range(self.trial_times):
-            self.sleep_interval()
-            self.driver.get(self.url) 
-            self.sleep_interval()
-            self.driver.execute_script(f"window.scrollTo(0, {random.randrange(0, 1000, 1)});")
-            state = self.driver.execute_script("return document.readyState")
-            if not(state == "complete"): continue
-            response = BeautifulSoup(self.driver.page_source, "lxml")
-            return response
-        raise RuntimeError("Failed to get source from " + self.url)
-
-    def __enter__(self):
-        self.driver = webdriver.Edge()
-        return self
-    
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.driver.quit()
-        if exc_type is not None:
-            print(exc_type, exc_value, traceback)
-            return False
-        return True
-
 class Provider:
-    
-    driver = webdriver.Edge()
-    
-    def __init__(self, baseURL:str, min_sleep_interval:float=2.0, max_sleep_interval:float=8.0, trial_times:int=3)->None:
+    def __init__(self, baseURL:str)->None:
         self.baseURL = baseURL
-        self.trial_times = trial_times
-        self.sleep_interval = lambda : time.sleep(random.random()*(max_sleep_interval - min_sleep_interval) + min_sleep_interval)
 
-    def get_source(self, url:str)->BeautifulSoup:
-        if url is None: return None
-        for _ in range(self.trial_times):
-            self.sleep_interval()
-            self.__class__.driver.get(url) 
-            self.sleep_interval()
-            self.__class__.driver.execute_script(f"window.scrollTo(0, {random.randrange(0, 1000, 1)});")
-            state = self.__class__.driver.execute_script("return document.readyState")
-            if not(state == "complete"): continue
-            response = BeautifulSoup(self.__class__.driver.page_source, "lxml")
-            return response
-        raise RuntimeError("Failed to get source from " + url)
+    def check_antibot(self, response:BeautifulSoup)->bool:
+        """
+        Check if the response is an anti-bot page.
+        To be overriden by subclasses.
+        """
+        return False
 
     def get_match_url(self, page:BeautifulSoup)->str:
         """
@@ -65,13 +19,6 @@ class Provider:
         """        
         raise NotImplementedError
 
-    def check_antibot(self, response:BeautifulSoup)->bool:
-        """
-        Check if the response is an anti-bot page.
-        To be overriden by subclasses.
-        """
-        return False
-    
     def retrieve_metadata(self, response:BeautifulSoup)->dict:
         """
         Retrieve book's metadata from the URL.
@@ -80,27 +27,6 @@ class Provider:
         """
         raise NotImplementedError
 
-    def __call__(self, book_info:str)->dict:
-        # global logger
-        metadata = {}
-        book_search_url = self.baseURL + book_info
-        metadata['Search URL'] = book_search_url
-
-        # logger.debug(f'Searching at URL {book_search_url}...')
-        book_search_page = self.get_source(book_search_url)
-        if self.check_antibot(book_search_page):
-            raise RuntimeError("Anti-bot page detected. Please try again later.")
-        best_match_url = self.get_match_url(book_search_page)
-
-        # logger.debug(f'Best Match URL: {best_match_url}')
-        best_match_page = self.get_source(best_match_url)
-        if self.check_antibot(book_search_page):
-            raise RuntimeError("Anti-bot page detected. Please try again later.")
-        metadata.update(self.retrieve_metadata(best_match_page))
-        return metadata
-    
-    def __del__(self):
-        self.driver.quit()
 
 class Douban(Provider):
     def __init__(self):
@@ -145,8 +71,7 @@ class Douban(Provider):
             idx += 1
         return final_metadata
 
-    
-    def get_match_url(self, book_search_page:BeautifulSoup) -> str:
+    def get_match_url(book_search_page:BeautifulSoup) -> str:
         first_match = book_search_page.find("a", class_="title-text", attrs={"data-moreurl": True})
         return first_match['href'] if first_match else None
 
@@ -157,7 +82,8 @@ class Douban(Provider):
         # the section of the page containing metadata
         final_metadata.update(self.__process_token(raw_metadata))
         return final_metadata
-    
+
+
 class Amazon(Provider):
     def __init__(self):
         super().__init__(baseURL="https://www.amazon.com/s?k=")
@@ -202,6 +128,3 @@ class Amazon(Provider):
                 isbn = value.replace('-', '')
                 meta_dict['ISBN'] = isbn
         return meta_dict
-    
-with PageScrapper() as ps:
-    print("Starting")
