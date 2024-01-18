@@ -12,6 +12,12 @@ class Provider:
         """
         return False
 
+    def check_empty_page(self, response:BeautifulSoup)->bool:
+        """
+        Check if a search page returns empty result.
+        To be overriden by subclasses
+        """
+
     def get_match_url(self, page:BeautifulSoup)->str:
         """
         Search for entries within the provider DB, return URL of best matched.
@@ -87,6 +93,10 @@ class Douban(Provider):
 class Amazon(Provider):
     def __init__(self):
         super().__init__(baseURL="https://www.amazon.com/s?k=")
+
+    def check_empty_page(self, response: BeautifulSoup) -> bool:
+        
+        return False
 
     def get_match_url(self, response:BeautifulSoup) -> str:
         first_match = response.select_one('h2.a-size-mini.a-spacing-none.a-color-base.s-line-clamp-2 > a.a-link-normal.s-underline-text.s-underline-link-text.s-link-style.a-text-normal')
