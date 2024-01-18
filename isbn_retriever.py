@@ -1,5 +1,5 @@
-from scrapper import PageScrapper
-from provider import Douban, Amazon, Provider
+from page_scrapper import PageScrapper
+from service_provider import Douban, Amazon, Provider
 
 class ISBNRetriever:
     def __init__(self)->None:
