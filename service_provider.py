@@ -77,7 +77,7 @@ class Douban(Provider):
             idx += 1
         return final_metadata
 
-    def get_match_url(book_search_page:BeautifulSoup) -> str:
+    def get_match_url(self, book_search_page:BeautifulSoup) -> str:
         first_match = book_search_page.find("a", class_="title-text", attrs={"data-moreurl": True})
         return first_match['href'] if first_match else None
 
@@ -104,37 +104,29 @@ class Amazon(Provider):
         return  match_url
 
     def __process_token(self, token:str)->str:
-        token = token.text.encode('ascii', 'ignore').decode('ascii') # remove any non-ascii characters
-        token = token.replace('\n', '').replace('\t', '') # remove line breaks and tabs
-        token = re.sub('\s+', ' ', token) # remove extra spaces
-        token = token.strip() # remove leading and trailing spaces
-        return token
-
+        attr = token.select_one('div.rpi-attribute-label > span')
+        value = token.select_one('div.rpi-attribute-value > span')
+        if not(attr and value):
+            return None, None
+        return attr.get_text(strip=True), value.get_text(strip=True)
 
     def retrieve_metadata(self, response:BeautifulSoup) -> dict:
         meta_dict = {}
         title = response.select_one('span#productTitle').get_text(strip=True)
         authors = response.select('span.author.notFaded > a')
-        miscs = response.select('div#detailBullets_feature_div > ul > li')
+        miscs = response.select('li.a-carousel-card.rpi-carousel-attribute-card > div')
         authors = ', '.join([author.get_text(strip=True) for author in authors])
 
         meta_dict['Fetched Title'] = title
         meta_dict['Fetched Authors'] = authors
 
         for misc in miscs:
-            misc = self.__process_token(misc)
-            attr, value = misc.split(' : ')
-            if attr == 'Publisher':
-                if value.count(';') == 0:
-                    publisher, edition_date = value.split('(')
-                    publisher = publisher.strip()
-                    edition_date = edition_date.split(')')[0].strip()
-                else:
-                    publisher, edition_date = value.split(';')
-                    edition_date = edition_date.split('(')[1][:-1]
-                meta_dict['Fetched Publisher'] = publisher
-                meta_dict['Fetched Edition Date'] = edition_date
-            elif attr == 'ISBN-13':
+            attr, value = self.__process_token(misc)
+            if attr == 'ISBN-13':
                 isbn = value.replace('-', '')
                 meta_dict['ISBN'] = isbn
+            elif attr == 'Publisher':
+                meta_dict['Fetched Publisher'] = value
+            elif attr == 'Publication date':
+                meta_dict['Fetched Edition Date'] = value
         return meta_dict
