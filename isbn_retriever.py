@@ -1,6 +1,7 @@
 from page_scrapper import PageScrapper
 from service_provider import Douban, Amazon, Provider
 from pandas import Series
+import re
 
 class ISBNRetriever:
     def __init__(self)->None:
@@ -8,14 +9,16 @@ class ISBNRetriever:
         self.providers = [Amazon(), Douban(),]
 
     def format_query(self, provider:Provider, book_info:Series)->str:
-        assert 'Title' in book_info and 'Author' in book_info, 'Inconsistent row naming'
-        query_string = book_info['Title']  # not sure whether to add more info into query
-        # query_string = ' '.join([book_info['Title'], book_info['Author']])
+        assert 'Title' in book_info , 'Inconsistent row naming'
+        if 'Author' in book_info:
+            query_string = ' '.join([book_info['Title'], book_info['Author']]) 
+        else:
+            query_string = book_info['Title']
         return provider.baseURL + query_string
 
     def get_provider(self, book_info:str)->str:
         assert 'Title' in book_info and 'Author'
-        return self.providers[0] if book_info['Title'].isascii() else self.providers[1]
+        return self.providers[1] if bool(re.search('[\u4e00-\u9fff]', book_info['Title'])) else self.providers[0]
 
     def retrieve(func):
         """
@@ -47,4 +50,7 @@ class ISBNRetriever:
         metadata['Search URL'] = best_match_url
 
         return metadata
+    
+    def __del__(self):
+        self.scrapper.quit()
     
