@@ -11,7 +11,7 @@ class ISBNRetriever:
     def format_query(self, provider:Provider, book_info:Series)->str:
         assert 'Title' in book_info , 'Inconsistent row naming'
         if 'Author' in book_info:
-            query_string = ' '.join([book_info['Title'], book_info['Author']]) 
+            query_string = ' '.join([book_info['Title'], book_info['Author']]) # TODO: changing to return different queries based on searching results
         else:
             query_string = book_info['Title']
         return provider.baseURL + query_string
@@ -45,12 +45,18 @@ class ISBNRetriever:
         provider = self.get_provider(book_info)
         book_query = self.format_query(provider, book_info)
 
-        best_match_url = self.get_book_url(provider, book_query)
-        metadata = self.get_book_meta(provider, best_match_url) if best_match_url else {}
-        metadata['Search URL'] = best_match_url
-
-        return metadata
+        urls = self.get_book_url(provider, book_query)
+        if len(urls) == 0: 
+            return {'Search URL': book_query} # handling empty result (if no urls matches could be found)
+        for url in urls:
+            try:
+                metadata = self.get_book_meta(provider, url) if url else {}
+                metadata['Search URL'] = url
+                return metadata
+            except Exception:
+                continue
+        return {'Search URL': book_query} # handling empty result (if all the urls visitted cannot be processed)
     
-    def __del__(self):
+    def quit(self):
         self.scrapper.quit()
     

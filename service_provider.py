@@ -78,8 +78,8 @@ class Douban(Provider):
         return final_metadata
 
     def get_match_url(self, book_search_page:BeautifulSoup) -> str:
-        first_match = book_search_page.find("a", class_="title-text", attrs={"data-moreurl": True})
-        return first_match['href'] if first_match else None
+        matches = book_search_page.select('div.title > a')
+        return [match['href'] if match else None for match in matches]
 
     def retrieve_metadata(self, book_page:BeautifulSoup) -> dict:
         final_metadata = {}
@@ -95,13 +95,12 @@ class Amazon(Provider):
         super().__init__(baseURL="https://www.amazon.com/s?k=")
 
     def check_empty_page(self, response: BeautifulSoup) -> bool:
-        
         return False
 
     def get_match_url(self, response:BeautifulSoup) -> str:
-        first_match = response.select_one('h2.a-size-mini.a-spacing-none.a-color-base.s-line-clamp-2 > a.a-link-normal.s-underline-text.s-underline-link-text.s-link-style.a-text-normal')
-        match_url = self.baseURL.replace("/s?k=", "") + first_match['href'] if first_match else None
-        return  match_url
+        matches = response.select('h2.a-size-mini.a-spacing-none.a-color-base.s-line-clamp-2 > a.a-link-normal.s-underline-text.s-underline-link-text.s-link-style.a-text-normal')
+        match_urls = [self.baseURL.replace("/s?k=", "") + match['href'] if match else None for match in matches]
+        return  match_urls
 
     def __process_token(self, token:str)->str:
         attr = token.select_one('div.rpi-attribute-label > span')
